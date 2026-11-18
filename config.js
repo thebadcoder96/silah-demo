@@ -24,5 +24,9 @@ window.SILAH_CONFIG = {
   "campaignAgentIds": {
     "ar": "agent_0501m7rckkppe9v9c15cg7bzw4cm",
     "en": "agent_0101m7rckn8dfdbre6mbwmdr2h38"
+  },
+  "phone": {
+    "id": "phnum_6701m7reky6hey3tydkyckge9fe7",
+    "number": "+1 334 666 6922"
   }
 };
