@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+.env*
+.data/
+
+# Private working files: kept on this machine only
+research/
+voices.html
