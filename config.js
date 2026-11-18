@@ -1,9 +1,14 @@
 // Demo settings. Agent ids are public by design (the same kind of id the
 // ElevenLabs embed widget exposes); never put an API key in this file.
-// scripts/setup-agents.mjs fills these in once the agents exist.
+// scripts/setup-agents.mjs writes this file; the part after "=" is plain JSON.
 window.SILAH_CONFIG = {
-  // Agent copilot (copilot/): the AI callers, one per scenario.
-  callerAgentIds: {},
-  // Campaign desk (campaign/): the outbound agent.
-  campaignAgentId: "",
+  "callerAgentIds": {
+    "telecom_ar": "agent_0301m7p4yjvhe1c97b8tvhxbaqcx",
+    "telecom_en": "agent_5501m7p4ym36fk2vdb91520sbsgp",
+    "bank_ar": "agent_3501m7p4ys4je6rsby88srdvq5cb",
+    "bank_en": "agent_8501m7p4yte2en8vqh0gmmbj2ah5",
+    "government_ar": "agent_1601m7p4yyb4ehgvc0ffqyydw6kt",
+    "government_en": "agent_8201m7p4yzecev68fgn27m0bvb48"
+  },
+  "copilotAgentId": "agent_8201m7p4ycegedt8nbwheejnbtvy"
 };

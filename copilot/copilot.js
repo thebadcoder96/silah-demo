@@ -1,0 +1,569 @@
+// The agent copilot. The visitor is the contact-centre agent. Two ElevenLabs
+// sessions run side by side during a call:
+//
+//   the call   a voice session with an AI caller playing the customer. It is
+//              also the transcript source: every finished line, from either
+//              side, arrives through onMessage. To use another speech-to-text
+//              for the agent's side, replace what feeds addLine().
+//   the brain  a text-only session with the copilot agent. Each line of the
+//              call is sent to it, and it answers by calling the two tools
+//              below, which move this screen. It never speaks to anyone.
+//
+// Add ?text to the address to type instead of speaking (no microphone needed).
+
+import { SCENARIOS, SCENARIO_LIST, callerKey, packFor } from "../data/scenarios.js";
+import { FLAGS } from "../lib/scorecard.js";
+import { createOrb } from "../lib/orb.js";
+import { asClientTools, createVoice } from "../lib/voice.js";
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, props = {}, kids = []) => {
+  const n = Object.assign(document.createElement(tag), props);
+  for (const k of [].concat(kids)) if (k != null) n.append(k);
+  return n;
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const params = new URLSearchParams(location.search);
+const TEXT_MODE = params.has("text");
+const config = window.SILAH_CONFIG || {};
+const CHECKS = { greeting: "Greeting", identity: "Identity check", recap: "Recap", closing: "Closing" };
+
+let scenario = SCENARIOS[params.get("call")] || SCENARIO_LIST[0];
+let language = params.get("lang") === "en" ? "en" : "ar";
+const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, queuedView: null, fields: {}, checks: {}, wrap: null, wrapLate: false, saved: null, english: false, conversationId: "" });
+let st = fresh();
+let phase = "lobby";
+const orb = createOrb($("#orb"));
+
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (t.hidden = true), 2600);
+}
+
+/** Type text into a field a character at a time, so the agent can see the copilot working. */
+async function typeInto(input, text) {
+  input.classList.add("filling");
+  input.value = "";
+  const pause = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : Math.max(10, Math.min(30, 900 / (text.length || 1)));
+  for (const ch of text) {
+    input.value += ch;
+    if (pause) await sleep(pause);
+  }
+  input.classList.remove("filling");
+}
+
+// ---------- lobby ----------
+
+const agentIdFor = () => config.callerAgentIds?.[callerKey(scenario.id, language)] || "";
+
+function drawLobby() {
+  $("#scenarios").replaceChildren(
+    ...SCENARIO_LIST.map((s) => {
+      const b = el("button", { className: "scenario", role: "radio", ariaChecked: String(s.id === scenario.id) }, [
+        el("small", { textContent: `${s.client} · ${s.sector}` }),
+        el("b", { textContent: s.title }),
+        el("span", { textContent: s.blurb }),
+      ]);
+      b.addEventListener("click", () => { scenario = s; drawLobby(); });
+      return b;
+    }),
+  );
+  document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.lang === language)));
+  const ready = Boolean(agentIdFor() && config.copilotAgentId);
+  $("#take").disabled = !ready;
+  $("#lobby-note").textContent = !ready ? "This call is not set up yet." : TEXT_MODE ? "Typing mode: you type what the agent says, and the customer answers in text." : "Uses your microphone. The customer speaks first only after you greet them.";
+}
+document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => { language = b.dataset.lang; drawLobby(); }));
+
+function setPhase(next) {
+  phase = next;
+  document.body.dataset.phase = next;
+  $("#lobby").hidden = next !== "lobby";
+  $("#desk").hidden = next === "lobby";
+  $("#answer").hidden = next !== "ringing";
+  $("#end").hidden = next !== "live";
+  $("#mute").hidden = next !== "live" || TEXT_MODE;
+  $("#typed").hidden = next !== "live";
+  $("#english").hidden = language !== "ar" || next === "ringing";
+}
+
+// ---------- ringing ----------
+
+let stopRing = () => {};
+function ring() {
+  try {
+    const ctx = new AudioContext();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+    const tones = [440, 480].map((f) => {
+      const o = ctx.createOscillator();
+      o.frequency.value = f;
+      o.connect(gain);
+      o.start();
+      return o;
+    });
+    const beat = () => { gain.gain.setTargetAtTime(0.06, ctx.currentTime, 0.02); gain.gain.setTargetAtTime(0, ctx.currentTime + 1.1, 0.02); };
+    beat();
+    const timer = setInterval(beat, 3000);
+    stopRing = () => { clearInterval(timer); tones.forEach((o) => o.stop()); ctx.close(); stopRing = () => {}; };
+  } catch {
+    // no audio: the Answer button still pulses
+  }
+}
+
+$("#take").addEventListener("click", () => {
+  st = fresh();
+  document.documentElement.style.setProperty("--accent", scenario.accent);
+  $("#sys-name").textContent = scenario.client;
+  $("#sys-search").value = "";
+  $("#call-title").textContent = "Incoming call";
+  $("#call-sub").textContent = `${scenario.client} customer line`;
+  $("#timer").textContent = "0:00";
+  $("#log").replaceChildren();
+  $("#reason").textContent = "Listening…";
+  $("#reason").className = "big muted";
+  $("#say").textContent = "–";
+  $("#say").className = "say muted";
+  $("#say-en").hidden = true;
+  $("#kb").replaceChildren(el("p", { className: "muted", textContent: "The matching card appears here." }));
+  $("#nudge").hidden = true;
+  $("#wrap").hidden = true;
+  $("#english").setAttribute("aria-pressed", "false");
+  drawChecks();
+  drawSystem();
+  orb.setState("connecting");
+  setPhase("ringing");
+  ring();
+});
+
+// ---------- the call ----------
+
+const call = createVoice({
+  onStatus(s) {
+    if (phase !== "live") return;
+    orb.setState(s);
+    $("#call-sub").textContent = { connecting: "Connecting…", listening: call.muted() ? "You are muted" : "Listening to you", speaking: "Customer is speaking", idle: "" }[s];
+    if (s === "idle") endCall(); // the customer hung up, or the line dropped
+  },
+  onMessage: (who, text) => (who === "note" ? toast(text) : addLine(who === "user" ? "agent" : "customer", text)),
+});
+orb.setLevel(() => Math.max(call.levels().input, call.levels().output));
+
+$("#answer").addEventListener("click", async () => {
+  if (phase !== "ringing") return;
+  stopRing();
+  setPhase("live");
+  st.startedAt = Date.now();
+  $("#call-title").textContent = "Customer";
+  note("Call started");
+  startBrain();
+  const ok = await call.start({ agentId: agentIdFor(), textOnly: TEXT_MODE });
+  if (!ok) return backToLobby();
+  st.conversationId = call.id();
+  if (TEXT_MODE) $("#call-sub").textContent = "Typing mode";
+});
+
+setInterval(() => {
+  if (phase !== "live") return;
+  const s = Math.floor((Date.now() - st.startedAt) / 1000);
+  $("#timer").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}, 500);
+
+function setMuted(on) {
+  const muted = call.mute(on);
+  $("#mute").setAttribute("aria-pressed", String(muted));
+  $("#mute").setAttribute("aria-label", muted ? "Unmute microphone" : "Mute microphone");
+  $("#mute").title = muted ? "Unmute" : "Mute";
+  $("#call-sub").textContent = muted ? "You are muted" : "Listening to you";
+}
+$("#mute").addEventListener("click", () => setMuted(!call.muted()));
+$("#end").addEventListener("click", () => endCall());
+$("#typed").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("#typed-input").value.trim();
+  if (!text || !call.send(text)) return;
+  $("#typed-input").value = "";
+  addLine("agent", text);
+});
+$("#english").addEventListener("click", () => {
+  st.english = !st.english;
+  $("#english").setAttribute("aria-pressed", String(st.english));
+  $("#log").querySelectorAll(".turn").forEach((n) => n.remove());
+  st.lines.forEach(drawLine);
+  $("#say-en").hidden = !(st.english && $("#say-en").textContent);
+});
+
+// ---------- transcript ----------
+
+function note(text) {
+  $("#log").append(el("div", { className: "note", textContent: text }));
+}
+
+function drawLine(line) {
+  const old = document.getElementById(`line-${line.id}`);
+  const node = el("div", { id: `line-${line.id}`, className: `turn ${line.who}` }, [
+    el("small", { textContent: line.who === "agent" ? "You" : scenario.customer.name }),
+    el("p", { textContent: line.text }),
+    st.english && line.en ? el("p", { className: "en", textContent: line.en }) : null,
+  ]);
+  if (old) old.replaceWith(node);
+  else $("#log").append(node);
+  $("#log").scrollTop = $("#log").scrollHeight;
+}
+
+/** Every finished line of the call lands here, whoever said it and however it was transcribed. */
+function addLine(who, text) {
+  text = String(text || "").trim();
+  if (!text || phase !== "live") return;
+  const line = { id: `L${st.lines.length + 1}`, who, text, en: "" };
+  st.lines.push(line);
+  drawLine(line);
+  feed(`[${line.id}] ${who === "agent" ? "AGENT" : "CUSTOMER"}: ${text}`);
+}
+
+// ---------- the brain ----------
+
+let pending = [];
+let busy = false;
+let busyTimer;
+function release() {
+  clearTimeout(busyTimer);
+  busy = false;
+  pump();
+}
+function pump() {
+  if (busy || !pending.length || !brain.active()) return;
+  busy = true;
+  brain.send(pending.splice(0).join("\n"));
+  busyTimer = setTimeout(release, 15000); // never wait for ever on one answer
+}
+function feed(text) {
+  pending.push(text);
+  pump();
+}
+async function startBrain() {
+  pending = [];
+  busy = false;
+  await brain.start({
+    agentId: config.copilotAgentId,
+    textOnly: true,
+    dynamicVariables: { client: scenario.client, language: language === "ar" ? "Bahraini Arabic (the agent may mix in English)" : "English", pack: packFor(scenario) },
+  });
+  pump();
+}
+
+// ---------- the brain's tools: these move the screen ----------
+
+async function update_screen(p) {
+  const out = { ok: true };
+  for (const t of p.translations || []) {
+    const line = st.lines.find((l) => l.id === t.line);
+    if (line && t.en) { line.en = t.en; drawLine(line); }
+  }
+  if (p.call_reason) {
+    $("#reason").textContent = p.call_reason;
+    $("#reason").className = "big";
+  }
+  if (p.customer_search) out.customer_record = await search(p.customer_search);
+  if (p.show_tab || p.highlight_row) out.screen = view(p.show_tab, p.highlight_row);
+  if (p.knowledge_card) out.knowledge = showCard(p.knowledge_card, p.knowledge_highlight);
+  if (p.say_next) {
+    $("#say").textContent = p.say_next;
+    $("#say").className = "say";
+    $("#say-en").textContent = p.say_next_en || "";
+    $("#say-en").hidden = !(st.english && p.say_next_en);
+  }
+  if (p.nudge !== undefined) {
+    $("#nudge").textContent = p.nudge;
+    $("#nudge").hidden = !p.nudge;
+  }
+  for (const c of p.checklist || []) if (c.item in CHECKS) st.checks[c.item] = c.evidence || "";
+  if (p.checklist?.length) drawChecks();
+  if (p.form_fields?.length) out.form = propose(p.form_fields);
+  return out;
+}
+
+function finish_call(p) {
+  st.wrap = {
+    summary: p.summary || "",
+    disposition: p.disposition || "",
+    title: p.ticket_title || "",
+    flags: (p.flags || []).filter((f) => f in FLAGS),
+    scorecard: p.scorecard || [],
+  };
+  drawWrap();
+  return { ok: true };
+}
+
+const TOOLS = { update_screen, finish_call };
+const brain = createVoice({
+  clientTools: asClientTools(TOOLS),
+  onMessage: (who) => who === "agent" && release(), // its "ok" means it is ready for the next lines
+});
+
+// ---------- the client's system ----------
+
+async function search(query) {
+  await typeInto($("#sys-search"), query);
+  const c = scenario.customer;
+  const q = query.toLowerCase();
+  const names = [...c.name.toLowerCase().split(" "), ...c.nameAr.split(" ")].filter((w) => w.length > 2);
+  const hit = names.some((w) => q.includes(w)) || q.replace(/\D/g, "").includes(c.cprLast4) || q.includes(c.account.toLowerCase());
+  if (!hit) {
+    if (st.identity === "none") $("#sys-body").replaceChildren(el("p", { className: "hint", textContent: `No customer matched “${query}”.` }));
+    return { found: false, note: "No customer matched. The agent should ask for the name and CPR digits again." };
+  }
+  if (st.identity === "none") st.identity = "found";
+  drawSystem();
+  return {
+    found: true,
+    name: c.name,
+    cpr_last_four: c.cprLast4,
+    account: c.account,
+    about: c.detail,
+    identity_confirmed_by_agent: st.identity === "confirmed",
+    note: st.identity === "confirmed" ? "The record is open." : "The match is on screen. The record opens when the agent presses Confirm identity; you can already choose the tab, row and form fields.",
+  };
+}
+
+function view(tabId, rowId) {
+  const tab = scenario.tabs.find((t) => t.id === tabId) || scenario.tabs.find((t) => t.rows.some((r) => r.id === rowId));
+  if (!tab) return { shown: false, reason: "No such tab or row." };
+  const row = tab.rows.find((r) => r.id === rowId)?.id || null;
+  if (st.identity !== "confirmed") {
+    st.queuedView = { tab: tab.id, row };
+    return { shown: false, reason: "Queued. It opens when the agent confirms the customer's identity." };
+  }
+  st.tab = tab.id;
+  st.spot = row;
+  drawSystem();
+  return { shown: true, tab: tab.id, row };
+}
+
+function confirmIdentity() {
+  st.identity = "confirmed";
+  st.tab = st.queuedView?.tab || scenario.tabs[0].id;
+  st.spot = st.queuedView?.row || null;
+  drawSystem();
+  feed("[NOTE] The agent pressed Confirm identity. The customer's record is now open on the agent's screen.");
+}
+
+function propose(fields) {
+  const taken = [];
+  for (const f of fields) {
+    if (!scenario.form.fields.some((x) => x.id === f.field) || !f.value) continue;
+    if (st.fields[f.field]?.status === "approved") continue; // never overwrite what the agent approved
+    st.fields[f.field] = { value: String(f.value), heard: f.heard || "", status: "proposed", fresh: true };
+    taken.push(f.field);
+  }
+  drawCase();
+  return { proposed: taken, note: "Shown as proposals. Nothing is saved until the agent approves." };
+}
+
+let caseDirty = false;
+function drawCase() {
+  const box = document.getElementById("case");
+  if (!box) return;
+  if (box.contains(document.activeElement) && document.activeElement.tagName === "INPUT" && !document.activeElement.readOnly) return void (caseDirty = true); // the agent is typing: wait
+  caseDirty = false;
+  const open = Object.values(st.fields).filter((f) => f.status === "proposed").length;
+  const all = el("button", { className: "ghost", textContent: "Approve all", hidden: open < 2 });
+  all.addEventListener("click", () => { for (const f of Object.values(st.fields)) f.status = "approved"; drawCase(); });
+  box.replaceChildren(
+    el("h3", {}, [scenario.form.title, all]),
+    ...scenario.form.fields.map((def) => {
+      const f = st.fields[def.id];
+      const input = el("input", { id: `f-${def.id}`, value: f?.value || "", readOnly: true, ariaLabel: def.label });
+      const settle = () => { st.fields[def.id] = { ...(st.fields[def.id] || { heard: "" }), value: input.value.trim(), status: input.value.trim() ? "approved" : undefined }; if (!input.value.trim()) delete st.fields[def.id]; drawCase(); };
+      input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
+      input.addEventListener("blur", () => !input.readOnly && settle());
+      const approve = el("button", { className: "ghost approve", textContent: "Approve" });
+      approve.addEventListener("click", () => { f.status = "approved"; drawCase(); });
+      const edit = el("button", { className: "ghost", textContent: "Edit" });
+      edit.addEventListener("click", () => { input.readOnly = false; input.focus(); input.select(); });
+      if (f?.fresh) { f.fresh = false; typeInto(input, f.value); }
+      return el("div", { className: `field ${f?.status || ""}` }, [
+        el("label", { htmlFor: input.id, textContent: def.label }),
+        input,
+        el("div", { className: "acts" }, f?.status === "approved" ? [el("span", { className: "ok", textContent: "✓ Approved" }), edit] : f ? [approve, edit] : [edit]),
+        f?.heard && f.status === "proposed" ? el("span", { className: "heard", textContent: `Heard: “${f.heard}”` }) : null,
+      ]);
+    }),
+  );
+}
+document.addEventListener("focusout", () => setTimeout(() => caseDirty && drawCase(), 0));
+
+function drawSystem() {
+  const c = scenario.customer;
+  const body = $("#sys-body");
+  if (st.identity === "none") return body.replaceChildren(el("p", { className: "hint", textContent: "The customer's record opens here once they say who they are." }));
+  const confirm = el("button", { className: "primary", textContent: "Confirm identity" });
+  confirm.addEventListener("click", confirmIdentity);
+  const match = el("div", { className: `match ${st.identity === "confirmed" ? "ok" : ""}` }, [
+    el("div", {}, [el("b", { textContent: c.name }), el("span", { textContent: `CPR ending ${c.cprLast4} · ${c.account} · ${c.detail}` })]),
+    st.identity === "confirmed" ? el("span", { className: "tick", textContent: "✓ Identity confirmed by you" }) : confirm,
+  ]);
+  const parts = [match];
+  if (st.identity === "confirmed") {
+    const tab = scenario.tabs.find((t) => t.id === st.tab) || scenario.tabs[0];
+    parts.push(
+      el("div", {}, [
+        el("div", { className: "tabs", role: "tablist" }, scenario.tabs.map((t) => {
+          const b = el("button", { role: "tab", className: t.id === tab.id ? "on" : "", textContent: t.title });
+          b.addEventListener("click", () => { st.tab = t.id; drawSystem(); });
+          return b;
+        })),
+        el("table", {}, [
+          el("thead", {}, el("tr", {}, tab.columns.map((h) => el("th", { textContent: h })))),
+          el("tbody", {}, tab.rows.map((r) => el("tr", { id: `row-${r.id}`, className: r.id === st.spot ? "spot" : "" }, r.cells.map((v) => el("td", { textContent: v }))))),
+        ]),
+      ]),
+    );
+  } else {
+    parts.push(el("p", { className: "fine", textContent: "Check the name and CPR digits with the customer, then confirm. Nothing is opened on a match alone." }));
+  }
+  parts.push(el("div", { id: "case", className: "case" }));
+  body.replaceChildren(...parts);
+  drawCase();
+  document.getElementById(`row-${st.spot}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+// ---------- the copilot's panel ----------
+
+const squash = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+function showCard(id, highlight) {
+  const card = scenario.kb.find((k) => k.id === id);
+  if (!card) return { shown: false, reason: "No such card." };
+  const want = squash(highlight);
+  $("#kb").replaceChildren(
+    el("h3", { textContent: card.title }),
+    el("ol", {}, card.body.map((line) => el("li", { className: want && (squash(line).includes(want) || want.includes(squash(line))) ? "spot" : "", textContent: line }))),
+  );
+  $("#kb .spot")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return { shown: true };
+}
+
+function drawChecks() {
+  $("#checklist").replaceChildren(
+    ...Object.entries(CHECKS).map(([id, label]) =>
+      el("li", { className: id in st.checks ? "done" : "" }, [el("span", { textContent: label }), st.checks[id] ? el("q", { textContent: st.checks[id] }) : null]),
+    ),
+  );
+}
+
+// ---------- after the call ----------
+
+function endCall() {
+  if (phase !== "live") return;
+  st.endedAt = Date.now();
+  setPhase("wrap");
+  call.end();
+  orb.setState("idle");
+  $("#call-title").textContent = "Call ended";
+  $("#call-sub").textContent = "";
+  note("Call ended");
+  $("#nudge").hidden = true;
+  if (!st.lines.length) return backToLobby();
+  feed("CALL ENDED");
+  drawWrap();
+  setTimeout(() => { if (phase === "wrap" && !st.wrap) { st.wrapLate = true; drawWrap(); } }, 30000);
+}
+
+function drawWrap() {
+  const box = $("#wrap");
+  box.hidden = false;
+  if (st.saved) {
+    const again = el("button", { className: "primary", textContent: "Take another call" });
+    again.addEventListener("click", backToLobby);
+    box.replaceChildren(
+      el("h2", { textContent: "Saved" }),
+      el("p", { className: "ref", textContent: st.saved.id }),
+      el("p", { className: "fine", textContent: st.saved.scored ? "The call and its scorecard are on the quality desk." : "The call is on the quality desk. It has not been scored." }),
+      el("div", { className: "actions" }, [again, el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" })]),
+    );
+    return box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  if (!st.wrap && !st.wrapLate) return box.replaceChildren(el("h2", { textContent: "Wrap-up" }), el("p", { className: "muted", textContent: "Writing the summary…" }));
+  const w = st.wrap || { summary: "", disposition: "", title: "", flags: [], scorecard: [] };
+  const summary = el("textarea", { id: "w-summary", rows: 5, value: w.summary });
+  const disposition = el("input", { id: "w-disposition", value: w.disposition });
+  const title = el("input", { id: "w-title", value: w.title });
+  const approved = Object.values(st.fields).filter((f) => f.status === "approved").length;
+  const save = el("button", { className: "primary", textContent: "Save and send to quality desk" });
+  const error = el("p", { className: "fine", hidden: true });
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    error.hidden = true;
+    try {
+      st.saved = await saveCall({ ...w, summary: summary.value, disposition: disposition.value, title: title.value });
+      drawWrap();
+    } catch (err) {
+      console.error(err);
+      error.textContent = "The call could not be saved. Nothing was sent. Try again.";
+      error.hidden = false;
+      save.disabled = false;
+    }
+  });
+  box.replaceChildren(...[
+    el("h2", { textContent: "Wrap-up" }),
+    st.wrap ? null : el("p", { className: "fine", textContent: "The copilot did not finish the summary. Write it yourself." }),
+    el("label", { htmlFor: "w-summary", textContent: "Summary" }), summary,
+    el("label", { htmlFor: "w-disposition", textContent: "Disposition" }), disposition,
+    el("label", { htmlFor: "w-title", textContent: "Case title" }), title,
+    el("div", { className: "chips" }, [
+      el("span", { className: "chip", textContent: `${approved} of ${scenario.form.fields.length} case fields approved` }),
+      ...w.flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] })),
+    ]),
+    el("div", { className: "actions" }, [save]),
+    error,
+  ].filter(Boolean));
+  box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+/** Save the call to the queue, then its scorecard. Returns { id, scored }. Throws if the call was not saved. */
+async function saveCall(w) {
+  const post = async (url, body) => {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const out = await res.json();
+    if (!res.ok || !out.ok) throw new Error(out.reason || out.error || res.status);
+    return out;
+  };
+  const { call: saved } = await post("/api/queue", {
+    source: "Copilot",
+    handledBy: "Human",
+    client: scenario.client,
+    scenario: scenario.title,
+    customer: scenario.customer.name,
+    language,
+    outcome: "answered",
+    disposition: w.disposition,
+    summary: [w.title, w.summary].filter(Boolean).join(". ").replace(/\.\. /g, ". "),
+    durationSecs: Math.round((st.endedAt - st.startedAt) / 1000),
+    flags: w.flags,
+    transcript: st.lines.map(({ who, text, en }) => ({ who, text, en })),
+    conversationId: st.conversationId,
+  });
+  let scored = false;
+  if (w.scorecard.length) {
+    scored = await post(`/api/queue?score=${saved.id}`, { model: "Copilot", criteria: w.scorecard, flags: w.flags }).then(() => true, () => false);
+  }
+  return { id: saved.id, scored };
+}
+
+function backToLobby() {
+  stopRing();
+  call.end();
+  brain.end();
+  orb.setState("idle");
+  setPhase("lobby");
+  drawLobby();
+}
+
+addEventListener("pagehide", () => { call.end(); brain.end(); });
+window.silahCopilot = { tools: TOOLS, addLine, state: () => st }; // for testing from the console
+drawLobby();
+setPhase("lobby");

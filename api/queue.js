@@ -1,11 +1,12 @@
 // The demo's call queue, read by the quality desk.
 //   GET    /api/queue     every call, newest first, each with its score
 //   POST   /api/queue     save a finished call; returns its reference number
+//   POST   /api/queue?score=SIL-1004   attach (or replace) the score for a call
 //   DELETE /api/queue     empty the queue (demo reset)
 // Every call here is fictional: made-up clients, customers and numbers.
 
-import { FLAGS } from "../lib/scorecard.js";
-import { addCall, clearCalls, isStoreError, listCalls } from "../lib/store.js";
+import { CRITERIA, FLAGS } from "../lib/scorecard.js";
+import { addCall, clearCalls, getCall, isStoreError, listCalls, saveScore } from "../lib/store.js";
 
 export const SOURCES = ["Copilot", "Campaign"];
 // The same outcome names the ElevenLabs calling API returns, so real and simulated calls look alike.
@@ -45,6 +46,15 @@ export function cleanCall(input = {}) {
   };
 }
 
+/** Tidy an incoming score. Returns { ok, score } or { ok: false, reason }. */
+export function cleanScore(input = {}) {
+  const criteria = (Array.isArray(input.criteria) ? input.criteria : [])
+    .filter((c) => CRITERIA.some((k) => k.id === c?.id))
+    .map((c) => ({ id: c.id, result: oneOf(c.result, ["pass", "fail", "unknown"], "unknown"), evidence: text(c.evidence, 400) }));
+  if (!criteria.length) return { ok: false, reason: "a score needs at least one known criterion" };
+  return { ok: true, score: { model: text(input.model, 60), criteria, flags: [...new Set(Array.isArray(input.flags) ? input.flags : [])].filter((f) => f in FLAGS) } };
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") return res.status(200).json({ calls: await listCalls() });
@@ -60,6 +70,13 @@ export default async function handler(req, res) {
       } catch {
         return res.status(400).json({ error: "body must be JSON" });
       }
+    }
+    const scoreFor = req.query?.score ?? new URL(req.url, "http://x").searchParams.get("score");
+    if (scoreFor) {
+      const cleaned = cleanScore(body);
+      if (!cleaned.ok) return res.status(422).json(cleaned);
+      if (!(await getCall(scoreFor))) return res.status(404).json({ ok: false, reason: "no such call" });
+      return res.status(201).json({ ok: true, score: await saveScore(scoreFor, cleaned.score) });
     }
     const cleaned = cleanCall(body);
     if (!cleaned.ok) return res.status(422).json(cleaned);
