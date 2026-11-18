@@ -27,6 +27,6 @@ window.SILAH_CONFIG = {
   },
   "phone": {
     "id": "phnum_6701m7reky6hey3tydkyckge9fe7",
-    "number": "+1 334 666 6922"
+    "number": "+13346666922"
   }
 };

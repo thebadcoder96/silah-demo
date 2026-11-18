@@ -24,7 +24,12 @@
     :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
     main { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
-    .head { margin-bottom: 20px; max-width: 78ch; }
+    .head { margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 40px; }
+    .head > div:first-child { flex: 1 1 420px; max-width: 78ch; }
+    .dial { flex: none; padding: 12px 18px 14px; background: #0f0f0f; color: #fff; border-bottom: 3px solid var(--ai); text-decoration: none; }
+    .dial small { display: block; font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: #a78bfa; }
+    .dial b { display: block; font: 700 30px/1.2 var(--mono); letter-spacing: -0.01em; white-space: nowrap; }
+    .line-number { margin: 2px 0 0; font: 700 17px var(--mono); color: var(--ai); }
     .eyebrow { font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--ai); }
     .head h1 { margin: 2px 0 0; font-size: 28px; line-height: 1.15; }
     .head p { margin: 6px 0 0; color: var(--text-2); }
@@ -104,14 +109,18 @@
   </header>
   <main>
     <div class="head">
+      <div>
       <span class="eyebrow">Inbound · Triage</span>
       <h1>Triage line</h1>
       <p>An AI agent answers the main line. It deals with the simple questions itself, works out what everyone else needs, and puts them through to the right desk with a summary, so your agent never starts from zero.</p>
+      </div>
+      <a id="dial" class="dial" hidden><small>Call it from any phone</small><b id="dial-number"></b></a>
     </div>
     <div class="grid">
       <section id="handset" class="panel handset" aria-label="Call">
         <p class="label" id="client"></p>
         <h2>Main line</h2>
+        <p id="line-number" class="line-number" hidden></p>
         <canvas id="orb" aria-hidden="true"></canvas>
         <div class="readout">
           <div id="timer" class="timer">0:00</div>
@@ -127,7 +136,6 @@
           <input id="typed-input" placeholder="Type what the caller says" autocomplete="off" aria-label="Type what the caller says">
           <button aria-label="Send">➤</button>
         </form>
-        <p id="number" class="fine" hidden></p>
         <p id="hint" class="fine">You are the caller. Uses your microphone. Try: "what time do you open on Saturday?", "I need to move my appointment", or "I want to complain".</p>
       </section>
 
@@ -169,6 +177,18 @@
     const fresh = () => ({ lines: [], need: "", desk: "", urgency: "", caller: "", summary: "", transferred: "", connected: false, startedAt: 0, saved: false });
 
     $("#client").textContent = TRIAGE.client;
+
+    // The real phone number, when one is connected: in the heading, where the room can read it.
+    const pretty = (n) => String(n).replace(/[^\d+]/g, "").replace(/^\+1(\d{3})(\d{3})(\d{4})$/, "+1 $1 $2 $3");
+    function showNumber(number) {
+      if (!number) return;
+      const text = pretty(number);
+      $("#dial").hidden = $("#line-number").hidden = false;
+      $("#dial").href = `tel:${text.replace(/\s/g, "")}`;
+      $("#dial-number").textContent = $("#line-number").textContent = text;
+      if (!TEXT_MODE) $("#hint").textContent = "Call that number from any phone and the call shows up here. Or press the button to call from this browser, using your microphone.";
+    }
+    showNumber(config.phone?.number);
     if (TEXT_MODE) $("#hint").textContent = "Typing mode: you type what the caller says, and the AI agent answers in text.";
 
     function drawLang() {
@@ -331,10 +351,7 @@
       try {
         if (!document.hidden && !voice.active()) {
           const data = await (await fetch("/api/phone?line=triage")).json();
-          if (data.number) {
-            $("#number").hidden = false;
-            $("#number").textContent = `Or call ${data.number} from any phone. The call shows up here.`;
-          }
+          showNumber(data.number);
           const b = data.board;
           const c = data.call;
           if ((b && b.at > opened - 60000) || (c && (c.live || c.started * 1000 > opened - 60000))) {
