@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Silah AI Demos | MM Intelligence</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=Outfit:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    :root { color-scheme: dark; --bg: #0f0f0f; --fg: #fafafa; --mute: #a6a6a6; --ghost: #6e6e82; --line: #1e1e30; --violet: #6335ed; --lav: #a78bfa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 Outfit, system-ui, sans-serif; min-height: 100vh;
+      background-image: linear-gradient(rgba(99,53,237,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(99,53,237,.07) 1px, transparent 1px); background-size: 48px 48px; }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-right, 0px)) 0 max(20px, env(safe-area-inset-left, 0px)); }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding-block: 22px; }
+    header img { display: block; height: 38px; width: auto; }
+    .mono { font: 12px "Space Mono", monospace; text-transform: uppercase; letter-spacing: 1.2px; color: var(--mute); }
+    header .mono { margin-left: auto; }
+    .intro { padding-block: 44px 36px; }
+    h1 { font-weight: 800; font-size: clamp(30px, 5.6vw, 68px); line-height: 1.05; letter-spacing: -.035em; margin: 0 0 14px; }
+    h1 em { font: italic 400 1.02em "Instrument Serif", serif; letter-spacing: -.01em; background: linear-gradient(90deg, #5227ff, #ff9ffc, #b19eef, #5227ff); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 9s linear infinite; padding-right: .08em; }
+    @keyframes shimmer { to { background-position: 300% 0; } }
+    .intro p { color: var(--mute); font-size: 19px; margin: 0; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; padding-bottom: 28px; }
+    .tile { display: flex; flex-direction: column; border: .56px solid var(--line); background: rgba(20,20,20,.9); color: inherit; text-decoration: none; transition: border-color .3s; }
+    a.tile:hover { border-color: rgba(99,53,237,.75); }
+    .art { aspect-ratio: 16 / 9; background: radial-gradient(120% 90% at 50% 110%, rgba(82,39,255,.32), transparent 62%), #121218; border-bottom: .56px solid var(--line); display: grid; place-items: center; }
+    .art svg { width: 46%; height: auto; fill: none; stroke: var(--lav); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .art .hot { stroke: #ff9ffc; }
+    .body { display: flex; flex-direction: column; gap: 8px; padding: 22px 22px 24px; flex: 1; }
+    .where { font: 11px "Space Mono", monospace; text-transform: uppercase; letter-spacing: 1.2px; color: var(--lav); }
+    .tile h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+    .tile p { margin: 0 0 14px; color: var(--mute); }
+    .cta { margin-top: auto; font: 16px "Space Mono", monospace; text-transform: uppercase; letter-spacing: .05em; color: #fff; background: rgba(99,53,237,.1); border: .56px solid rgba(99,53,237,.4); padding: 16px 36px; text-align: center; transition: background-color .3s, border-color .3s; }
+    a.tile:hover .cta { background: rgba(82,39,255,.28); border-color: rgba(99,53,237,.9); }
+    .tile.soon .cta { color: var(--ghost); background: none; border-color: var(--line); }
+    .strip { border-top: .56px solid var(--line); padding-block: 22px 60px; }
+    .strip p { margin: 0; color: var(--ghost); font-size: 14px; }
+    @media (min-width: 720px) { h1 { white-space: nowrap; } }
+    @media (prefers-reduced-motion: reduce) { h1 em { animation: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="assets/mmi-logo.png" alt="MM Intelligence">
+      <span class="mono">Demo for Silah Gulf · Not an official Silah site</span>
+    </header>
+
+    <section class="intro">
+      <h1>AI beside <em>every agent.</em></h1>
+      <p>Three working demos: in front of, beside and behind your agents.</p>
+    </section>
+
+    <section class="tiles">
+      <!-- A tile becomes a link (and loses "soon") when its demo is built. -->
+      <div class="tile soon">
+        <div class="art"><svg viewBox="0 0 120 80" aria-hidden="true"><path d="M14 16h44M14 30h44M14 44h30M14 58h36"/><circle cx="8" cy="16" r="1.5"/><circle cx="8" cy="30" r="1.5"/><circle cx="8" cy="44" r="1.5"/><circle cx="8" cy="58" r="1.5"/><rect x="78" y="14" width="28" height="52" rx="5"/><path d="M88 21h8"/><circle cx="92" cy="58" r="2"/><path class="hot" d="M64 34c3 2 3 10 0 12M70 29c5 4 5 18 0 22"/></svg></div>
+        <div class="body">
+          <span class="where">In front of the agent</span>
+          <h2>Campaign desk</h2>
+          <p>AI works the call list and hands over to a person.</p>
+          <span class="cta">In build</span>
+        </div>
+      </div>
+      <div class="tile soon">
+        <div class="art"><svg viewBox="0 0 120 80" aria-hidden="true"><path d="M18 46V38a20 20 0 0 1 40 0v8"/><rect x="12" y="44" width="10" height="16" rx="3"/><rect x="54" y="44" width="10" height="16" rx="3"/><path d="M59 60v3a7 7 0 0 1-7 7H42"/><rect x="74" y="12" width="36" height="56" rx="3"/><path d="M80 22h24M80 32h16"/><path class="hot" d="M80 46l4 4 7-8M96 47h8M80 58l4 4 7-8M96 59h8"/></svg></div>
+        <div class="body">
+          <span class="where">Beside the agent</span>
+          <h2>Agent copilot</h2>
+          <p>Take a call while AI finds the answer and fills the screen.</p>
+          <span class="cta">In build</span>
+        </div>
+      </div>
+      <a class="tile" href="quality/">
+        <div class="art"><svg viewBox="0 0 120 80" aria-hidden="true"><rect x="30" y="10" width="60" height="62" rx="4"/><path d="M48 10V6h24v4"/><path class="hot" d="M40 26l4 4 7-8M40 42l4 4 7-8"/><path d="M58 27h22M58 43h22M40 58h10M58 58h22"/></svg></div>
+        <div class="body">
+          <span class="where">Behind the agent</span>
+          <h2>Quality desk</h2>
+          <p>Every call scored against one standard, AI or human.</p>
+          <span class="cta">Launch demo</span>
+        </div>
+      </a>
+    </section>
+
+    <div class="strip">
+      <p>Every client, customer, account and call in these demos is made up. Nothing here is connected to Silah's systems.</p>
+    </div>
+  </div>
+</body>
+</html>

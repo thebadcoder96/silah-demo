@@ -1,0 +1,17 @@
+{
+  "name": "silah-demo",
+  "private": true,
+  "type": "module",
+  "description": "AI in front of, beside and behind the contact-centre agent: demos for Silah Gulf by MM Intelligence",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "seed": "node scripts/seed-queue.mjs",
+    "voices": "node scripts/make-voice-page.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.9.0"
+  }
+}

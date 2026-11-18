@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quality desk | MM Intelligence demo</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <style>
+    :root {
+      --bg: #fafafa; --card: #ffffff; --raised: #f4f4f5;
+      --text: #171717; --text-2: #525252; --muted: #737373;
+      --line: rgba(23, 23, 23, .08); --line-strong: rgba(23, 23, 23, .14);
+      --copilot: #7c3aed; --campaign: #2563eb; --pass: #15803d; --fail: #dc2626; --warn: #a16207;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; font: 15px/1.5 Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 56px; padding: 8px max(24px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--card); }
+    .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 500; white-space: nowrap; }
+    .brand span { color: var(--muted); font-weight: 400; }
+    .bar nav { display: flex; gap: 4px; margin-left: auto; }
+    .bar nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: 14px; white-space: nowrap; transition: background-color .15s var(--ease), color .15s var(--ease); }
+    .bar nav a:hover { background: var(--raised); color: var(--text); }
+    .notice { margin: 0; padding: 8px max(24px, env(safe-area-inset-left, 0px)); font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+
+    main { max-width: 1440px; margin: 0 auto; padding: 32px 24px 64px; }
+    .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 24px; }
+    .head h1 { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 500; letter-spacing: -0.01em; }
+    .live { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+    .live canvas { width: 28px; height: 28px; margin: -4px 0; }
+    .live.off span { color: var(--fail); }
+    .ghost { margin-left: auto; height: 36px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font-size: 14px; white-space: nowrap; transition: background-color .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease); }
+    .ghost:hover { background: var(--raised); }
+    .ghost.sure { border-color: var(--fail); color: var(--fail); }
+
+    .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; }
+    .stat span { display: block; font-size: 13px; color: var(--muted); }
+    .stat b { display: block; margin-top: 4px; font: 500 28px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+    .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .box { background: var(--card); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th { text-align: left; font-size: 13px; font-weight: 400; color: var(--muted); padding: 12px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { padding-inline: 14px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr { cursor: pointer; transition: background-color .15s var(--ease); }
+    tbody tr:hover { background: var(--bg); }
+    tbody tr.sel { background: var(--raised); }
+    tbody tr.new { animation: flash 2.4s var(--ease); }
+    @keyframes flash { from { background: #f5f3ff; } }
+    .id { font: 500 13px/21px var(--mono); white-space: nowrap; }
+    .nowrap { white-space: nowrap; }
+    .time { white-space: nowrap; color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .sub2 { display: block; color: var(--muted); font-size: 13px; }
+    .tag { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--text-2); }
+    .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .tag.copilot::before { background: var(--copilot); } .tag.campaign::before { background: var(--campaign); }
+    .score { font: 500 13px/21px var(--mono); white-space: nowrap; }
+    .score.none { color: var(--muted); font-weight: 400; }
+    .sub2.flag { color: var(--warn); }
+    .empty { padding: 48px 24px; text-align: center; color: var(--muted); font-size: 14px; }
+
+    .detail { padding: 20px 24px 24px; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .detail h2 { margin: 0; font-size: 18px; font-weight: 500; }
+    .detail h2 .ref { font-family: var(--mono); }
+    .detail .sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+    .detail h3 { display: flex; align-items: center; gap: 12px; margin: 24px 0 10px; padding-top: 20px; border-top: 1px dashed var(--line-strong); font-size: 13px; font-weight: 500; color: var(--muted); }
+    .detail h3 b { margin-left: auto; font: 500 15px var(--mono); color: var(--text); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: var(--raised); color: var(--text-2); }
+    .chip.warn { background: #fefce8; color: var(--warn); border: 1px solid rgba(161, 98, 7, .2); }
+    .text { margin: 0; font-size: 14px; }
+    .crit { display: grid; grid-template-columns: 76px 1fr; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .crit:last-child { border-bottom: 0; }
+    .pill { justify-self: start; align-self: start; font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
+    .pill.pass { color: var(--pass); border-color: rgba(21, 128, 61, .3); background: #f0fdf4; }
+    .pill.fail { color: var(--fail); border-color: rgba(220, 38, 38, .3); background: #fef2f2; }
+    .crit q { grid-column: 2; color: var(--text-2); font-size: 13px; quotes: "“" "”"; unicode-bidi: plaintext; }
+    .fine { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    .toggle { margin-left: auto; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text-2); font-size: 13px; }
+    .toggle[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
+    .turns { display: flex; flex-direction: column; gap: 8px; }
+    .turn { max-width: 88%; padding: 8px 12px; border-radius: 12px; background: var(--raised); font-size: 14px; }
+    .turn.agent { align-self: flex-end; background: #f5f3ff; }
+    .turn small { display: block; font-size: 12px; color: var(--muted); }
+    .turn p { margin: 0; unicode-bidi: plaintext; text-align: start; }
+    .turn .en { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
+
+    @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
+    @media (max-width: 640px) {
+      .bar, .notice { padding-inline: 16px; }
+      .brand span { display: none; }
+      main { padding: 24px 16px 48px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      td { white-space: nowrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { tbody tr.new { animation: none; } }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">Quality desk <span>One standard, every call</span></div>
+    <nav><a href="../">All demos</a></nav>
+  </header>
+  <p class="notice">A sample quality desk by MM Intelligence. Every client, customer and call here is made up.</p>
+  <main>
+    <div class="head">
+      <h1>Every call, scored</h1>
+      <div id="live" class="live"><canvas id="orb" aria-hidden="true"></canvas><span>Live · updates every 2 seconds</span></div>
+      <button id="clear" class="ghost">Clear demo queue</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Calls</span><b id="n-all">0</b></div>
+      <div class="stat"><span>Handled by AI</span><b id="n-ai">0</b></div>
+      <div class="stat"><span>Handled by a person</span><b id="n-human">0</b></div>
+      <div class="stat"><span>Average score</span><b id="n-score">–</b></div>
+      <div class="stat"><span>Flagged</span><b id="n-flag">0</b></div>
+    </div>
+    <div class="grid">
+      <div class="box scroll">
+        <table>
+          <thead><tr><th>Ref</th><th>Source</th><th>Client</th><th>Handled by</th><th>Outcome</th><th>Score</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty">No calls yet. Calls from the campaign desk and the agent copilot appear here as they end</div>
+      </div>
+      <div class="box detail" id="detail"><p class="sub">Select a call to see its transcript and scorecard</p></div>
+    </div>
+  </main>
+  <script type="module">
+    import { createOrb } from "../lib/orb.js";
+    import { FLAGS, criteriaFor } from "../lib/scorecard.js";
+
+    const $ = (s) => document.querySelector(s);
+    const orb = createOrb($("#orb"));
+    const el = (tag, props = {}, kids = []) => {
+      const n = Object.assign(document.createElement(tag), props);
+      for (const k of [].concat(kids)) if (k != null) n.append(k);
+      return n;
+    };
+    const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const length = (s) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : "");
+    const who = (c) => (c.handledBy === "AI" ? "AI agent" : "Human agent");
+    const OUTCOME = { answered: "Answered", voicemail: "Voicemail", busy: "Busy", no_answer: "No answer", failed: "Failed" };
+    const RESULT = { pass: "Pass", fail: "Fail", unknown: "Unclear" };
+
+    /** A call's score as { passed, of }, or null when it has not been scored. */
+    function tally(c) {
+      if (!c.score?.criteria) return null;
+      const applicable = criteriaFor(c.handledBy).map((k) => c.score.criteria.find((x) => x.id === k.id)?.result || "unknown");
+      return { passed: applicable.filter((r) => r === "pass").length, of: applicable.length };
+    }
+    const allFlags = (c) => [...new Set([...(c.flags || []), ...(c.score?.flags || [])])].filter((f) => f in FLAGS);
+
+    let known = null, selected = null, items = [], showEnglish = false;
+
+    function detail(c) {
+      const t = tally(c);
+      const flags = allFlags(c);
+      const hasEnglish = c.transcript.some((x) => x.en);
+      const english = el("button", { className: "toggle", textContent: "English", ariaPressed: String(showEnglish) });
+      english.addEventListener("click", () => { showEnglish = !showEnglish; detail(c); });
+      $("#detail").replaceChildren(...[
+        el("h2", {}, [el("span", { className: "ref", textContent: c.id }), ` · ${[c.client, c.scenario].filter(Boolean).join(" · ") || c.source}`]),
+        el("p", { className: "sub", textContent: [c.source, who(c), OUTCOME[c.outcome], length(c.durationSecs), new Date(c.createdAt).toLocaleString()].filter(Boolean).join(" · ") }),
+        el("div", { className: "chips" }, [
+          c.simulated ? el("span", { className: "chip", textContent: "Simulated" }) : null,
+          c.disposition ? el("span", { className: "chip", textContent: c.disposition }) : null,
+          c.handoverFrom ? el("span", { className: "chip", textContent: `Handed over from ${c.handoverFrom}` }) : null,
+          ...flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] })),
+        ]),
+        c.summary ? el("h3", { textContent: "Summary" }) : null,
+        c.summary ? el("p", { className: "text", textContent: c.summary }) : null,
+        el("h3", {}, ["Scorecard", t ? el("b", { textContent: `${t.passed} / ${t.of}` }) : null]),
+        el("div", {}, criteriaFor(c.handledBy).map((k) => {
+          const got = c.score?.criteria?.find((x) => x.id === k.id);
+          return el("div", { className: "crit", title: k.what }, [
+            el("span", { className: `pill ${got?.result || ""}`, textContent: got ? RESULT[got.result] || "Unclear" : "–" }),
+            el("span", { textContent: k.label }),
+            got?.evidence ? el("q", { textContent: got.evidence }) : null,
+          ]);
+        })),
+        el("p", { className: "fine", textContent: t ? `The same ${t.of} checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on.` : "Not scored yet." }),
+        c.transcript.length ? el("h3", {}, ["Transcript", hasEnglish ? english : null]) : null,
+        c.transcript.length ? el("div", { className: "turns" }, c.transcript.map((x) =>
+          el("div", { className: `turn ${x.who}` }, [
+            el("small", { textContent: x.who === "agent" ? who(c) : c.customer || "Customer" }),
+            el("p", { textContent: x.text }),
+            showEnglish && x.en ? el("p", { className: "en", textContent: x.en }) : null,
+          ]))) : null,
+      ].filter(Boolean));
+    }
+
+    function render() {
+      const scored = items.map(tally).filter(Boolean);
+      $("#n-all").textContent = items.length;
+      $("#n-ai").textContent = items.filter((c) => c.handledBy === "AI").length;
+      $("#n-human").textContent = items.filter((c) => c.handledBy !== "AI").length;
+      $("#n-score").textContent = scored.length ? `${Math.round((100 * scored.reduce((a, t) => a + t.passed / t.of, 0)) / scored.length)}%` : "–";
+      $("#n-flag").textContent = items.filter((c) => allFlags(c).length).length;
+      $("#empty").hidden = items.length > 0;
+      const fresh = known && items.find((c) => !known.has(c.id));
+      if (fresh) selected = fresh.id;
+      $("#rows").replaceChildren(...items.map((c) => {
+        const t = tally(c);
+        const flags = allFlags(c);
+        const tr = el("tr", { className: [known && !known.has(c.id) ? "new" : "", c.id === selected ? "sel" : ""].join(" ").trim() }, [
+          el("td", {}, [el("span", { className: "id", textContent: c.id }), el("span", { className: "sub2 time", textContent: time(c.createdAt) })]),
+          el("td", {}, el("span", { className: `tag ${c.source.toLowerCase()}`, textContent: c.source })),
+          el("td", { className: "nowrap" }, [c.client || "–", el("span", { className: "sub2", textContent: c.scenario })]),
+          el("td", { className: "nowrap", textContent: who(c) }),
+          el("td", { className: "nowrap" }, [OUTCOME[c.outcome] || c.outcome, c.simulated ? el("span", { className: "sub2", textContent: "Simulated" }) : null]),
+          el("td", { className: "nowrap" }, [
+            el("span", { className: `score ${t ? "" : "none"}`, textContent: t ? `${t.passed} / ${t.of}` : "Not scored" }),
+            flags.length ? el("span", { className: "sub2 flag", textContent: flags.length === 1 ? FLAGS[flags[0]] : `${flags.length} flags` }) : null,
+          ]),
+        ]);
+        tr.addEventListener("click", () => { selected = c.id; render(); });
+        return tr;
+      }));
+      const open = items.find((c) => c.id === selected);
+      if (open) detail(open);
+      known = new Set(items.map((c) => c.id));
+    }
+
+    const signature = (list) => JSON.stringify(list.map((c) => [c.id, c.score?.scoredAt]));
+    async function poll() {
+      try {
+        const res = await fetch("/api/queue", { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status);
+        const next = (await res.json()).calls || [];
+        $("#live").className = "live";
+        orb.setState("listening");
+        $("#live span").textContent = "Live · updates every 2 seconds";
+        if (known === null || signature(next) !== signature(items)) { items = next; render(); }
+      } catch {
+        $("#live").className = "live off";
+        orb.setState("idle");
+        $("#live span").textContent = "Not connected";
+      }
+    }
+
+    let armed = null;
+    $("#clear").addEventListener("click", async () => {
+      const b = $("#clear");
+      if (!armed) {
+        b.textContent = "Click again to clear"; b.classList.add("sure");
+        armed = setTimeout(() => { b.textContent = "Clear demo queue"; b.classList.remove("sure"); armed = null; }, 4000);
+        return;
+      }
+      clearTimeout(armed); armed = null; b.textContent = "Clear demo queue"; b.classList.remove("sure");
+      await fetch("/api/queue", { method: "DELETE" });
+      selected = null;
+      $("#detail").replaceChildren(el("p", { className: "sub", textContent: "Select a call to see its transcript and scorecard" }));
+      poll();
+    });
+
+    poll();
+    setInterval(poll, 2000);
+  </script>
+</body>
+</html>
