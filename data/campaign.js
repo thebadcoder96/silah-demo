@@ -16,7 +16,7 @@ const t = (who, text, en) => ({ who, text, en });
 
 export const LEADS = [
   {
-    name: "Hassan Al Aali", phone: "+973 3••• ••41", language: "ar", appointment: "Mon 23 Nov, 09:30", outcome: "answered", result: "Confirmed", secs: 41,
+    name: "Hassan Al Aali", gender: "male", phone: "+973 3••• ••41", language: "ar", appointment: "Mon 23 Nov, 09:30", outcome: "answered", result: "Confirmed", secs: 41,
     summary: "Reminder for an ID card renewal on Monday at half past nine. He confirmed he will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياك المساعد الآلي من مركز خدمتي. أكلم الأخ حسن العالي؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Hassan Al Aali?"),
@@ -29,7 +29,7 @@ export const LEADS = [
     ],
   },
   {
-    name: "Maryam Al Sayed", phone: "+973 3••• ••16", language: "ar", appointment: "Sun 22 Nov, 10:00", outcome: "answered", result: "Handed to a person", secs: 52, handover: "government", flags: ["asked_for_person"],
+    name: "Maryam Al Sayed", gender: "female", phone: "+973 3••• ••16", language: "ar", appointment: "Sun 22 Nov, 10:00", outcome: "answered", result: "Handed to a person", secs: 52, handover: "government", flags: ["asked_for_person"],
     summary: "She cannot attend on Sunday at ten because of a hospital appointment and wants another morning next week, at Isa Town if possible. She asked to speak to a person.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت مريم السيد؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Maryam Al Sayed?"),
@@ -41,12 +41,12 @@ export const LEADS = [
     ],
   },
   {
-    name: "Zainab Al Asfoor", phone: "+973 3••• ••07", language: "ar", appointment: "Mon 23 Nov, 11:00", outcome: "voicemail", result: "Message left", secs: 19,
+    name: "Zainab Al Asfoor", gender: "female", phone: "+973 3••• ••07", language: "ar", appointment: "Mon 23 Nov, 11:00", outcome: "voicemail", result: "Message left", secs: 19,
     summary: "Voicemail. A short reminder was left with the appointment day and time.",
     transcript: [t(AI, "السلام عليكم، هذي رسالة من المساعد الآلي في مركز خدمتي: نذكرج بموعد تجديد البطاقة يوم الاثنين الساعة إحدعش الصبح في مركز مدينة عيسى. مع السلامة.", "Peace be upon you. This is a message from the AI assistant at Khidmati Service Centre: a reminder of your ID card renewal appointment on Monday at eleven in the morning at the Isa Town centre. Goodbye.")],
   },
   {
-    name: "Ebrahim Salman", phone: "+973 3••• ••88", language: "en", appointment: "Tue 24 Nov, 08:30", outcome: "answered", result: "Confirmed", secs: 44,
+    name: "Ebrahim Salman", gender: "male", phone: "+973 3••• ••88", language: "en", appointment: "Tue 24 Nov, 08:30", outcome: "answered", result: "Confirmed", secs: 44,
     summary: "Reminder for an ID card renewal on Tuesday at half past eight. He confirmed and asked what to bring; the assistant listed the documents.",
     transcript: [
       t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Ebrahim Salman?"),
@@ -61,11 +61,11 @@ export const LEADS = [
     ],
   },
   {
-    name: "Khalid Al Mannai", phone: "+973 3••• ••52", language: "ar", appointment: "Tue 24 Nov, 13:00", outcome: "no_answer", result: "Retry later", secs: 0,
+    name: "Khalid Al Mannai", gender: "male", phone: "+973 3••• ••52", language: "ar", appointment: "Tue 24 Nov, 13:00", outcome: "no_answer", result: "Retry later", secs: 0,
     summary: "No answer. One more attempt is scheduled inside calling hours.", transcript: [],
   },
   {
-    name: "Sara Yousif", phone: "+973 3••• ••30", language: "en", appointment: "Wed 25 Nov, 09:15", outcome: "answered", result: "Opted out", secs: 27, flags: ["do_not_call"],
+    name: "Sara Yousif", gender: "female", phone: "+973 3••• ••30", language: "en", appointment: "Wed 25 Nov, 09:15", outcome: "answered", result: "Opted out", secs: 27, flags: ["do_not_call"],
     summary: "She asked not to be called again. Her number was marked do not call and no further attempts will be made.",
     transcript: [
       t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Sara Yousif?"),
@@ -74,7 +74,7 @@ export const LEADS = [
     ],
   },
   {
-    name: "Noora Janahi", phone: "+973 3••• ••65", language: "ar", appointment: "Mon 23 Nov, 12:30", outcome: "answered", result: "Confirmed", secs: 38,
+    name: "Noora Janahi", gender: "female", phone: "+973 3••• ••65", language: "ar", appointment: "Mon 23 Nov, 12:30", outcome: "answered", result: "Confirmed", secs: 38,
     summary: "Reminder for an ID card renewal on Monday at half past twelve. She confirmed she will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت نورة جناحي؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Noora Janahi?"),
@@ -87,11 +87,11 @@ export const LEADS = [
     ],
   },
   {
-    name: "Jassim Al Tamimi", phone: "+973 3••• ••93", language: "ar", appointment: "Wed 25 Nov, 10:45", outcome: "busy", result: "Retry later", secs: 0,
+    name: "Jassim Al Tamimi", gender: "male", phone: "+973 3••• ••93", language: "ar", appointment: "Wed 25 Nov, 10:45", outcome: "busy", result: "Retry later", secs: 0,
     summary: "The line was busy. One more attempt is scheduled inside calling hours.", transcript: [],
   },
   {
-    name: "Huda Kamal", phone: "+973 3••• ••24", language: "ar", appointment: "Tue 24 Nov, 10:00", outcome: "answered", result: "Callback requested", secs: 47, flags: ["promised_callback"],
+    name: "Huda Kamal", gender: "female", phone: "+973 3••• ••24", language: "ar", appointment: "Tue 24 Nov, 10:00", outcome: "answered", result: "Callback requested", secs: 47, flags: ["promised_callback"],
     summary: "She is travelling on Tuesday and cannot attend. She was driving and asked for a call back after four to choose a new time. A callback was booked for a member of staff.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت هدى كمال؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Huda Kamal?"),
@@ -102,11 +102,11 @@ export const LEADS = [
     ],
   },
   {
-    name: "Ali Jaffar", phone: "+973 3••• ••70", language: "ar", appointment: "Wed 25 Nov, 12:00", outcome: "failed", result: "Number not in service", secs: 0,
+    name: "Ali Jaffar", gender: "male", phone: "+973 3••• ••70", language: "ar", appointment: "Wed 25 Nov, 12:00", outcome: "failed", result: "Number not in service", secs: 0,
     summary: "The call could not be connected. The number is not in service and needs checking.", transcript: [],
   },
   {
-    name: "Mohammed Al Doseri", phone: "+973 3••• ••19", language: "en", appointment: "Mon 23 Nov, 14:15", outcome: "answered", result: "Wrong person", secs: 24,
+    name: "Mohammed Al Doseri", gender: "male", phone: "+973 3••• ••19", language: "en", appointment: "Mon 23 Nov, 14:15", outcome: "answered", result: "Wrong person", secs: 24,
     summary: "The person who answered was not Mohammed Al Doseri. The assistant shared no appointment details and ended the call.",
     transcript: [
       t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Mohammed Al Doseri?"),
@@ -115,7 +115,7 @@ export const LEADS = [
     ],
   },
   {
-    name: "Fatima Bucheeri", phone: "+973 3••• ••58", language: "ar", appointment: "Tue 24 Nov, 11:30", outcome: "answered", result: "Confirmed", secs: 36,
+    name: "Fatima Bucheeri", gender: "female", phone: "+973 3••• ••58", language: "ar", appointment: "Tue 24 Nov, 11:30", outcome: "answered", result: "Confirmed", secs: 36,
     summary: "Reminder for an ID card renewal on Tuesday at half past eleven. She confirmed she will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت فاطمة بوجيري؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Fatima Bucheeri?"),

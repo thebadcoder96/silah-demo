@@ -80,6 +80,13 @@ Every demo saves the same shape to `POST /api/queue`, and gets back a reference 
 
 A score is saved beside the call with `POST /api/queue?score=<reference>`, so a call can be scored after it ends.
 
+## Call audio and voice testing
+
+- **Campaign audio.** The campaign desk's calls are simulated, so their audio is recorded ahead of time: `node scripts/make-campaign-audio.mjs` reads each transcript line with an ElevenLabs voice into `campaign/audio/<lead>/<line>.mp3`. These files are committed. Run it again after changing `data/campaign.js`. The campaign desk and the quality desk play them with `lib/player.js`. Sound is off until someone presses Sound or Listen.
+- **Copilot calls have no recording.** Only the transcript is kept.
+- **Testing a voice call without a microphone.** `npm run test-audio` writes the agent's side of a call in Bahraini Arabic to `test-audio/` (local only). Open the copilot with `?voicetest`, take a call, and run `voiceTest.play("/test-audio/bank-ar/1.mp3")` in the console for each line. Synthetic speech is cleaner than a person's, so this checks the path, not real-world accuracy.
+- **Typing mode.** `?text` on the copilot swaps the microphone for a text box.
+
 ## Not built yet
 
 - A real outbound call from the campaign desk ("Call my phone"), which needs a Twilio number.

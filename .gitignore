@@ -6,3 +6,4 @@ node_modules/
 # Private working files: kept on this machine only
 research/
 voices.html
+test-audio/

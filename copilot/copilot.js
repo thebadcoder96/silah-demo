@@ -25,12 +25,13 @@ const el = (tag, props = {}, kids = []) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const params = new URLSearchParams(location.search);
 const TEXT_MODE = params.has("text");
+if (params.has("voicetest")) await import("./voice-test.js"); // plays recorded lines in place of the microphone
 const config = window.SILAH_CONFIG || {};
 const CHECKS = { greeting: "Greeting", identity: "Identity check", recap: "Recap", closing: "Closing" };
 
 let scenario = SCENARIOS[params.get("call")] || SCENARIO_LIST[0];
 let language = params.get("lang") === "en" ? "en" : "ar";
-const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, queuedView: null, fields: {}, checks: {}, wrap: null, wrapLate: false, saved: null, english: false, conversationId: "" });
+const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, flashTab: null, queuedView: null, fields: {}, checks: {}, card: null, step: null, done: [], say: "", sayEn: "", wrap: null, wrapLate: false, saved: null, saving: null, saveFailed: false, english: false, conversationId: "" });
 let st = fresh();
 
 // A call handed over by the campaign desk's AI agent arrives as ?handover=<reference>.
@@ -87,7 +88,7 @@ function drawLobby() {
   if (handover) $("#handover").replaceChildren(el("b", { textContent: `Waiting for you: ${handover.customer}, handed over by the AI agent (${handover.id})` }), el("p", { textContent: handover.summary }));
   const ready = Boolean(agentIdFor() && config.copilotAgentId);
   $("#take").disabled = !ready;
-  $("#lobby-note").textContent = !ready ? "This call is not set up yet." : TEXT_MODE ? "Typing mode: you type what the agent says, and the customer answers in text." : "Uses your microphone. The customer speaks first only after you greet them.";
+  $("#lobby-note").textContent = !ready ? "This call is not set up yet." : TEXT_MODE ? "Typing mode: you type what the agent says, and the customer answers in text." : "Uses your microphone. The customer says hello when you answer.";
 }
 document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => { language = b.dataset.lang; drawLobby(); }));
 
@@ -139,10 +140,7 @@ $("#take").addEventListener("click", () => {
   $("#log").replaceChildren();
   $("#reason").textContent = "Listening…";
   $("#reason").className = "big muted";
-  $("#say").textContent = "–";
-  $("#say").className = "say muted";
-  $("#say-en").hidden = true;
-  $("#kb").replaceChildren(el("p", { className: "muted", textContent: "The matching card appears here." }));
+  drawGuide();
   $("#nudge").hidden = true;
   $("#wrap").hidden = true;
   $("#ho").hidden = !handover;
@@ -209,7 +207,7 @@ $("#english").addEventListener("click", () => {
   $("#english").setAttribute("aria-pressed", String(st.english));
   $("#log").querySelectorAll(".turn").forEach((n) => n.remove());
   st.lines.forEach(drawLine);
-  $("#say-en").hidden = !(st.english && $("#say-en").textContent);
+  drawGuide();
 });
 
 // ---------- transcript ----------
@@ -286,13 +284,17 @@ async function update_screen(p) {
   }
   if (p.customer_search) out.customer_record = await search(p.customer_search);
   if (p.show_tab || p.highlight_row) out.screen = view(p.show_tab, p.highlight_row);
-  if (p.knowledge_card) out.knowledge = showCard(p.knowledge_card, p.knowledge_highlight);
-  if (p.say_next) {
-    $("#say").textContent = p.say_next;
-    $("#say").className = "say";
-    $("#say-en").textContent = p.say_next_en || "";
-    $("#say-en").hidden = !(st.english && p.say_next_en);
+  if (p.knowledge_card) {
+    if (scenario.kb.some((k) => k.id === p.knowledge_card)) st.card = p.knowledge_card;
+    else out.knowledge = { shown: false, reason: "No such card." };
   }
+  if (Array.isArray(p.steps_done)) st.done = p.steps_done.map(Number);
+  if (p.current_step !== undefined) st.step = Number(p.current_step);
+  if (p.say_next) {
+    st.say = p.say_next;
+    st.sayEn = p.say_next_en || "";
+  }
+  drawGuide();
   if (p.nudge !== undefined) {
     $("#nudge").textContent = p.nudge;
     $("#nudge").hidden = !p.nudge;
@@ -354,6 +356,7 @@ function view(tabId, rowId) {
     st.queuedView = { tab: tab.id, row };
     return { shown: false, reason: "Queued. It opens when the agent confirms the customer's identity." };
   }
+  if (st.tab !== tab.id) st.flashTab = tab.id; // the copilot changed the tab: make that visible
   st.tab = tab.id;
   st.spot = row;
   drawSystem();
@@ -381,6 +384,16 @@ function propose(fields) {
   return { proposed: taken, note: "Shown as proposals. Nothing is saved until the agent approves." };
 }
 
+/** Tell the brain what the agent approved on screen, so a click can finish a step just as a spoken line can. */
+function tellApproved() {
+  clearTimeout(tellApproved.timer);
+  tellApproved.timer = setTimeout(() => {
+    if (phase !== "live") return;
+    const done = scenario.form.fields.filter((d) => st.fields[d.id]?.status === "approved").map((d) => `${d.label}: ${st.fields[d.id].value}`);
+    if (done.length) feed(`[NOTE] The agent approved these case form fields on screen: ${done.join("; ")}. ${done.length === scenario.form.fields.length ? "The case form is complete." : ""}`);
+  }, 700);
+}
+
 let caseDirty = false;
 function drawCase() {
   const box = document.getElementById("case");
@@ -389,17 +402,17 @@ function drawCase() {
   caseDirty = false;
   const open = Object.values(st.fields).filter((f) => f.status === "proposed").length;
   const all = el("button", { className: "ghost", textContent: "Approve all", hidden: open < 2 });
-  all.addEventListener("click", () => { for (const f of Object.values(st.fields)) f.status = "approved"; drawCase(); });
+  all.addEventListener("click", () => { for (const f of Object.values(st.fields)) f.status = "approved"; drawCase(); tellApproved(); });
   box.replaceChildren(
     el("h3", {}, [scenario.form.title, all]),
     ...scenario.form.fields.map((def) => {
       const f = st.fields[def.id];
       const input = el("input", { id: `f-${def.id}`, value: f?.value || "", readOnly: true, ariaLabel: def.label });
-      const settle = () => { st.fields[def.id] = { ...(st.fields[def.id] || { heard: "" }), value: input.value.trim(), status: input.value.trim() ? "approved" : undefined }; if (!input.value.trim()) delete st.fields[def.id]; drawCase(); };
+      const settle = () => { st.fields[def.id] = { ...(st.fields[def.id] || { heard: "" }), value: input.value.trim(), status: input.value.trim() ? "approved" : undefined }; if (!input.value.trim()) delete st.fields[def.id]; drawCase(); tellApproved(); };
       input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
       input.addEventListener("blur", () => !input.readOnly && settle());
       const approve = el("button", { className: "ghost approve", textContent: "Approve" });
-      approve.addEventListener("click", () => { f.status = "approved"; drawCase(); });
+      approve.addEventListener("click", () => { f.status = "approved"; drawCase(); tellApproved(); });
       const edit = el("button", { className: "ghost", textContent: "Edit" });
       edit.addEventListener("click", () => { input.readOnly = false; input.focus(); input.select(); });
       if (f?.fresh) { f.fresh = false; typeInto(input, f.value); }
@@ -430,13 +443,13 @@ function drawSystem() {
     parts.push(
       el("div", {}, [
         el("div", { className: "tabs", role: "tablist" }, scenario.tabs.map((t) => {
-          const b = el("button", { role: "tab", className: t.id === tab.id ? "on" : "", textContent: t.title });
+          const b = el("button", { role: "tab", className: [t.id === tab.id ? "on" : "", t.id === st.flashTab ? "flash" : ""].join(" ").trim(), textContent: t.title });
           b.addEventListener("click", () => { st.tab = t.id; drawSystem(); });
           return b;
         })),
         el("table", {}, [
           el("thead", {}, el("tr", {}, tab.columns.map((h) => el("th", { textContent: h })))),
-          el("tbody", {}, tab.rows.map((r) => el("tr", { id: `row-${r.id}`, className: r.id === st.spot ? "spot" : "" }, r.cells.map((v) => el("td", { textContent: v }))))),
+          el("tbody", {}, tab.rows.map((r) => el("tr", { id: `row-${r.id}`, className: r.id === st.spot ? "spot" : "" }, r.cells.map((v, n) => el("td", {}, [r.id === st.spot && n === 0 ? el("span", { className: "cp", textContent: "Copilot" }) : null, v]))))),
         ]),
       ]),
     );
@@ -445,23 +458,41 @@ function drawSystem() {
   }
   parts.push(el("div", { id: "case", className: "case" }));
   body.replaceChildren(...parts);
+  st.flashTab = null;
   drawCase();
   document.getElementById(`row-${st.spot}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // ---------- the copilot's panel ----------
 
-const squash = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-function showCard(id, highlight) {
-  const card = scenario.kb.find((k) => k.id === id);
-  if (!card) return { shown: false, reason: "No such card." };
-  const want = squash(highlight);
-  $("#kb").replaceChildren(
+function sayBox() {
+  if (!st.say) return null;
+  return el("div", { className: "saybox" }, [
+    el("small", { textContent: "Say" }),
+    el("p", { className: "say", textContent: st.say }),
+    st.english && st.sayEn ? el("p", { className: "say-en", textContent: st.sayEn }) : null,
+  ]);
+}
+
+/** One place to look: the procedure for this call, where the agent is in it, and what to say now. */
+function drawGuide() {
+  const card = scenario.kb.find((k) => k.id === st.card);
+  if (!card) return $("#guide").replaceChildren(sayBox() || el("p", { className: "muted", textContent: "Listening…" }));
+  // If the brain has not said which step is next, it is the first one not yet done.
+  const firstOpen = card.body.findIndex((_, i) => !st.done.includes(i + 1)) + 1;
+  const now = st.step === 0 ? 0 : st.step && !st.done.includes(st.step) ? st.step : firstOpen;
+  $("#guide").replaceChildren(...[
     el("h3", { textContent: card.title }),
-    el("ol", {}, card.body.map((line) => el("li", { className: want && (squash(line).includes(want) || want.includes(squash(line))) ? "spot" : "", textContent: line }))),
-  );
-  $("#kb .spot")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  return { shown: true };
+    el("ol", { className: "steps" }, card.body.map((text, i) => {
+      const n = i + 1;
+      const state = st.done.includes(n) ? "done" : n === now ? "now" : "";
+      return el("li", { className: state }, [el("span", { textContent: text }), state === "now" ? sayBox() : null]);
+    })),
+    now === 0 ? el("p", { className: "alldone", textContent: "Every step is done." }) : null,
+    now === 0 ? sayBox() : null,
+    card.caution ? el("p", { className: "caution", textContent: card.caution }) : null,
+  ].filter(Boolean));
+  $("#guide .now")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function drawChecks() {
@@ -493,63 +524,33 @@ function endCall() {
 function drawWrap() {
   const box = $("#wrap");
   box.hidden = false;
-  if (st.saved) {
-    const again = el("button", { className: "primary", textContent: "Take another call" });
-    again.addEventListener("click", backToLobby);
-    box.replaceChildren(
-      el("h2", { textContent: "Saved" }),
-      el("p", { className: "ref", textContent: st.saved.id }),
-      el("p", { className: "fine", textContent: st.saved.scored ? "The call and its scorecard are on the quality desk." : "The call is on the quality desk. It has not been scored." }),
-      el("div", { className: "actions" }, [again, el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" })]),
-    );
-    return box.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }
+  const again = el("button", { className: "primary", textContent: "Take another call" });
+  again.addEventListener("click", backToLobby);
   if (!st.wrap && !st.wrapLate) return box.replaceChildren(el("h2", { textContent: "Wrap-up" }), el("p", { className: "muted", textContent: "Writing the summary…" }));
   const w = st.wrap || { summary: "", disposition: "", title: "", flags: [], scorecard: [] };
-  const summary = el("textarea", { id: "w-summary", rows: 5, value: w.summary });
-  const disposition = el("input", { id: "w-disposition", value: w.disposition });
-  const title = el("input", { id: "w-title", value: w.title });
+  if (!st.saved && !st.saving) save(w); // nothing to press: the call goes to the quality desk as soon as it is written up
   const approved = Object.values(st.fields).filter((f) => f.status === "approved").length;
-  const save = el("button", { className: "primary", textContent: "Save and send to quality desk" });
-  const error = el("p", { className: "fine", hidden: true });
-  save.addEventListener("click", async () => {
-    save.disabled = true;
-    error.hidden = true;
-    try {
-      st.saved = await saveCall({ ...w, summary: summary.value, disposition: disposition.value, title: title.value });
-      drawWrap();
-    } catch (err) {
-      console.error(err);
-      error.textContent = "The call could not be saved. Nothing was sent. Try again.";
-      error.hidden = false;
-      save.disabled = false;
-    }
-  });
+  const retry = el("button", { className: "ghost", textContent: "Try again" });
+  retry.addEventListener("click", () => { st.saveFailed = false; st.saving = null; drawWrap(); });
   box.replaceChildren(...[
     el("h2", { textContent: "Wrap-up" }),
-    st.wrap ? null : el("p", { className: "fine", textContent: "The copilot did not finish the summary. Write it yourself." }),
-    el("label", { htmlFor: "w-summary", textContent: "Summary" }), summary,
-    el("label", { htmlFor: "w-disposition", textContent: "Disposition" }), disposition,
-    el("label", { htmlFor: "w-title", textContent: "Case title" }), title,
+    st.saved ? el("p", { className: "ref", textContent: st.saved.id }) : null,
+    el("p", { className: "fine", textContent: st.saved ? (st.saved.scored ? "Saved. The call and its scorecard are on the quality desk." : "Saved. The quality desk will score it.") : st.saveFailed ? "The call could not be saved. Nothing was sent." : "Saving to the quality desk…" }),
+    w.title ? el("p", { className: "big", textContent: w.title }) : null,
+    w.summary ? el("p", { className: "text", textContent: w.summary }) : st.wrap ? null : el("p", { className: "text", textContent: "The copilot did not finish the summary in time. The transcript was saved without one." }),
     el("div", { className: "chips" }, [
+      w.disposition ? el("span", { className: "chip", textContent: w.disposition }) : null,
       el("span", { className: "chip", textContent: `${approved} of ${scenario.form.fields.length} case fields approved` }),
       ...w.flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] })),
     ]),
-    el("div", { className: "actions" }, [save]),
-    error,
+    el("div", { className: "actions" }, [st.saveFailed ? retry : null, again, st.saved ? el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" }) : null]),
   ].filter(Boolean));
   box.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-/** Save the call to the queue, then its scorecard. Returns { id, scored }. Throws if the call was not saved. */
-async function saveCall(w) {
-  const post = async (url, body) => {
-    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const out = await res.json();
-    if (!res.ok || !out.ok) throw new Error(out.reason || out.error || res.status);
-    return out;
-  };
-  const { call: saved } = await post("/api/queue", {
+/** The call as the queue wants it. */
+function record(w) {
+  return {
     source: "Copilot",
     handledBy: "Human",
     client: scenario.client,
@@ -559,17 +560,34 @@ async function saveCall(w) {
     outcome: "answered",
     disposition: w.disposition,
     summary: [w.title, w.summary].filter(Boolean).join(". ").replace(/\.\. /g, ". "),
-    durationSecs: Math.round((st.endedAt - st.startedAt) / 1000),
+    durationSecs: Math.round(((st.endedAt || Date.now()) - st.startedAt) / 1000),
     flags: w.flags,
     transcript: st.lines.map(({ who, text, en }) => ({ who, text, en })),
     conversationId: st.conversationId,
     handoverFrom: handover?.id,
-  });
-  let scored = false;
-  if (w.scorecard.length) {
-    scored = await post(`/api/queue?score=${saved.id}`, { model: "Copilot", criteria: w.scorecard, flags: w.flags }).then(() => true, () => false);
-  }
-  return { id: saved.id, scored };
+  };
+}
+
+/** Save the call to the queue, then its scorecard. Never shows a reference the queue did not give. */
+function save(w) {
+  const post = async (url, body) => {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const out = await res.json();
+    if (!res.ok || !out.ok) throw new Error(out.reason || out.error || res.status);
+    return out;
+  };
+  st.saving = (async () => {
+    try {
+      const { call: saved } = await post("/api/queue", record(w));
+      const scored = w.scorecard.length ? await post(`/api/queue?score=${saved.id}`, { model: "Copilot", criteria: w.scorecard, flags: w.flags }).then(() => true, () => false) : false;
+      st.saved = { id: saved.id, scored };
+    } catch (err) {
+      console.error(err);
+      st.saveFailed = true;
+    }
+    st.saving = st.saveFailed ? true : null; // after a failure, wait for "Try again"
+    if (phase === "wrap") drawWrap();
+  })();
 }
 
 function backToLobby() {
@@ -581,7 +599,15 @@ function backToLobby() {
   drawLobby();
 }
 
-addEventListener("pagehide", () => { call.end(); brain.end(); });
+// Closing the tab mid-call must not lose the call: send what there is, and the quality desk scores it.
+addEventListener("pagehide", () => {
+  if ((phase === "live" || phase === "wrap") && st.lines.length > 1 && !st.saved && !st.saving) {
+    st.saving = true;
+    navigator.sendBeacon("/api/queue", new Blob([JSON.stringify(record({ summary: "", disposition: "Ended without a wrap-up", title: "", flags: [] }))], { type: "application/json" }));
+  }
+  call.end();
+  brain.end();
+});
 window.silahCopilot = { tools: TOOLS, addLine, state: () => st }; // for testing from the console
 drawLobby();
 setPhase("lobby");

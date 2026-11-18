@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
   <style>
     :root {
       --bg: #fafafa; --card: #ffffff; --raised: #f4f4f5;
@@ -15,21 +15,14 @@
       --line: rgba(23, 23, 23, .08); --line-strong: rgba(23, 23, 23, .14);
       --ai: #6335ed; --ai-soft: #f5f3ff; --ok: #15803d; --info: #2563eb; --warn: #a16207; --bad: #dc2626;
       --ease: cubic-bezier(0.22, 1, 0.36, 1);
-      --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+      --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font: 15px/1.5 Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; font: 15px/1.5 Outfit, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
     button { font: inherit; color: inherit; cursor: pointer; }
     [hidden] { display: none !important; }
     :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
-    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 52px; padding: 6px 24px; border-bottom: 1px solid var(--line); background: var(--card); }
-    .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 500; white-space: nowrap; }
-    .brand span { color: var(--muted); font-weight: 400; }
-    .bar nav { display: flex; gap: 4px; margin-left: auto; }
-    .bar nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: 14px; white-space: nowrap; }
-    .bar nav a:hover { background: var(--raised); color: var(--text); }
-    .notice { margin: 0; padding: 6px 24px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--card); }
 
     main { max-width: 1440px; margin: 0 auto; padding: 28px 24px 64px; }
     .head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; margin-bottom: 20px; }
@@ -85,6 +78,9 @@
     .turn p { margin: 0; unicode-bidi: plaintext; text-align: start; }
     .turn .en { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
     @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+.tools { margin-left: auto; display: flex; gap: 6px; }
+    .tools .toggle { margin-left: 0; }
+    .turn.playing { box-shadow: 0 0 0 2px var(--ai); }
     .handover { margin-top: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(99, 53, 237, .28); background: var(--ai-soft); }
     .handover b { display: block; font-weight: 500; }
     .handover p { margin: 4px 0 10px; font-size: 14px; color: var(--text-2); }
@@ -93,19 +89,18 @@
     .empty { color: var(--muted); font-size: 14px; margin: 0; }
 
     @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
-    @media (max-width: 640px) { .bar, .notice { padding-inline: 16px; } .brand span { display: none; } main { padding: 20px 16px 48px; } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions { margin-left: 0; } }
+    @media (max-width: 640px) { main { padding: 20px 16px 48px; } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions { margin-left: 0; } }
     @media (prefers-reduced-motion: reduce) { .turn, .state::before { animation: none !important; } }
   </style>
+  <link rel="stylesheet" href="../assets/shell.css">
 </head>
 <body>
-  <header class="bar">
-    <div class="brand">Campaign desk <span>AI in front of the agent</span></div>
-    <nav>
-      <a href="../">All demos</a>
-      <a href="../quality/" target="silah-quality">Quality desk</a>
-    </nav>
+  <header class="demo-bar">
+    <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
+    <span><b>Campaign desk.</b> A demonstration by MM Intelligence. This run is simulated: nobody is dialled, and every person and number is made up.</span>
+    <a href="../">← All demos</a>
+    <a href="../quality/" target="silah-quality">Quality desk</a>
   </header>
-  <p class="notice">A demonstration by MM Intelligence. This run is simulated: nobody is dialled, and every person and number is made up.</p>
   <main>
     <div class="head">
       <div>
@@ -139,6 +134,7 @@
   </main>
   <script type="module">
     import { CAMPAIGN, LEADS } from "../data/campaign.js";
+    import { createPlayer } from "../lib/player.js";
     import { FLAGS } from "../lib/scorecard.js";
 
     const $ = (s) => document.querySelector(s);
@@ -158,6 +154,12 @@
 
     // One row per lead. state: queued, dialing, live, done.
     let rows = [], selected = 0, pinned = false, english = false, running = false;
+
+    // Recorded lines for each call (campaign/audio/<lead>/<line>.mp3), if they have been made.
+    const player = createPlayer();
+    const audioBase = (i) => `audio/${i + 1}/`;
+    let hasAudio = false, sound = false, playingLine = -1; // sound stays off until someone asks for it
+    fetch(audioBase(0) + "1.mp3", { method: "HEAD" }).then((r) => { hasAudio = r.ok; drawDetail(); }).catch(() => {});
     const reset = () => { rows = LEADS.map((lead) => ({ lead, state: "queued", shown: 0, ref: null, saved: false })); selected = 0; pinned = false; };
     reset();
 
@@ -184,7 +186,7 @@
           el("td", { textContent: r.state === "done" ? l.result : "" }),
           el("td", {}, el("span", { className: `ref ${r.ref ? "" : "none"}`, textContent: r.ref || (r.state === "done" ? (r.saved === null ? "Not saved" : "Saving…") : "") })),
         ]);
-        tr.addEventListener("click", () => { selected = i; pinned = true; draw(); });
+        tr.addEventListener("click", () => { player.stop(); playingLine = -1; selected = i; pinned = true; draw(); });
         return tr;
       }));
     }
@@ -195,6 +197,14 @@
       const lines = l.transcript.slice(0, r.state === "done" ? l.transcript.length : r.shown);
       const toggle = el("button", { className: "toggle", textContent: "English", ariaPressed: String(english), hidden: l.language !== "ar" });
       toggle.addEventListener("click", () => { english = !english; drawDetail(); });
+      const soundBtn = el("button", { className: "toggle", textContent: "Sound", ariaPressed: String(sound), hidden: !hasAudio || r.state === "done" });
+      soundBtn.addEventListener("click", () => { sound = !sound; if (!sound) player.stop(); drawDetail(); });
+      const listen = el("button", { className: "toggle", textContent: playingLine >= 0 ? "■ Stop" : "▶ Listen", ariaPressed: String(playingLine >= 0), hidden: !hasAudio || r.state !== "done" || !l.transcript.length });
+      listen.addEventListener("click", () => {
+        if (playingLine >= 0) return player.stop();
+        const at = selected;
+        player.all(audioBase(at), l.transcript.length, (n) => { playingLine = n; if (selected === at) drawDetail(); });
+      });
       const status = r.state === "queued" ? "Waiting to be called" : r.state === "dialing" ? "Dialling…" : r.state === "live" ? (l.outcome === "voicemail" ? "Leaving a message" : "On the call with the AI agent") : `${OUTCOME[l.outcome]} · ${l.result}`;
       $("#detail").replaceChildren(...[
         el("h2", { textContent: l.name }),
@@ -207,14 +217,15 @@
         ]) : null,
         r.state === "done" ? el("h3", { textContent: "Summary" }) : null,
         r.state === "done" ? el("p", { className: "text", textContent: l.summary }) : null,
-        el("h3", {}, ["Transcript", toggle]),
-        lines.length ? el("div", { className: "turns" }, lines.map((x) => el("div", { className: `turn ${x.who}` }, [
+        el("h3", {}, ["Transcript", el("span", { className: "tools" }, [listen, soundBtn, toggle])]),
+        lines.length ? el("div", { className: "turns" }, lines.map((x, n) => el("div", { className: `turn ${x.who} ${n === playingLine ? "playing" : ""}` }, [
           el("small", { textContent: x.who === "agent" ? "AI agent" : l.name }),
           el("p", { textContent: x.text }),
           english && x.en ? el("p", { className: "en", textContent: x.en }) : null,
         ]))) : el("p", { className: "empty", textContent: r.state === "done" ? "No conversation." : "The call appears here as it happens." }),
       ].filter(Boolean));
-      $("#detail").scrollTop = r.state === "live" ? $("#detail").scrollHeight : 0;
+      if (playingLine >= 0) $("#detail .playing")?.scrollIntoView({ block: "nearest" });
+      else $("#detail").scrollTop = r.state === "live" ? $("#detail").scrollHeight : 0;
     }
 
     const draw = () => { drawStats(); drawRows(); drawDetail(); };
@@ -226,7 +237,7 @@
         const res = await fetch("/api/queue", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ source: "Campaign", simulated: true, handledBy: "AI", client: CAMPAIGN.client, scenario: CAMPAIGN.name, customer: l.name, language: l.language, outcome: l.outcome, disposition: l.result, summary: l.summary, durationSecs: l.secs, flags: l.flags || [], transcript: l.transcript }),
+          body: JSON.stringify({ audio: hasAudio && l.transcript.length ? `/campaign/${audioBase(rows.indexOf(r))}` : undefined, source: "Campaign", simulated: true, handledBy: "AI", client: CAMPAIGN.client, scenario: CAMPAIGN.name, customer: l.name, language: l.language, outcome: l.outcome, disposition: l.result, summary: l.summary, durationSecs: l.secs, flags: l.flags || [], transcript: l.transcript }),
         });
         const out = await res.json();
         if (!out.ok) throw new Error(out.reason || out.error);
@@ -240,7 +251,8 @@
 
     async function dial(i) {
       const r = rows[i];
-      const follow = () => { if (!pinned) selected = i; };
+      // The panel follows the newest call, but never leaves one that is still being listened to.
+      const follow = () => { if (!pinned && rows[selected].state !== "live") selected = i; };
       r.state = "dialing";
       draw();
       await sleep((1400 + Math.random() * 1800) * PACE);
@@ -248,10 +260,17 @@
         r.state = "live";
         follow();
         draw();
-        for (const line of r.lead.transcript) {
-          await sleep(Math.min(3400, 600 + line.text.length * 30) * PACE);
-          r.shown++;
-          if (selected === i) drawDetail();
+        for (const [n, line] of r.lead.transcript.entries()) {
+          if (hasAudio && sound && selected === i) {
+            // The call on screen is heard as it happens: show the line, then say it.
+            r.shown = n + 1;
+            drawDetail();
+            if (!(await player.line(audioBase(i), n + 1))) await sleep(300 * PACE);
+          } else {
+            await sleep(Math.min(3400, 600 + line.text.length * 30) * PACE);
+            r.shown = n + 1;
+            if (selected === i) drawDetail();
+          }
         }
         await sleep(700 * PACE);
       } else {
@@ -266,6 +285,8 @@
     $("#start").addEventListener("click", async () => {
       if (running) return;
       running = true;
+      player.stop();
+      playingLine = -1;
       reset();
       $("#start").disabled = true;
       $("#start").textContent = "Running…";

@@ -7,18 +7,17 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
   <link rel="stylesheet" href="copilot.css">
+  <link rel="stylesheet" href="../assets/shell.css">
 </head>
 <body data-phase="lobby">
-  <header class="bar">
-    <div class="brand">Agent copilot <span>AI beside the agent</span></div>
-    <nav>
-      <a href="../">All demos</a>
-      <a href="../quality/" target="silah-quality">Quality desk</a>
-    </nav>
+  <header class="demo-bar">
+    <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
+    <span><b>Agent copilot.</b> A demonstration by MM Intelligence. The caller is an AI playing a customer. The client, the customer and every number are made up.</span>
+    <a href="../">← All demos</a>
+    <a href="../quality/" target="silah-quality">Quality desk</a>
   </header>
-  <p class="notice">A demonstration by MM Intelligence. The caller is an AI playing a customer. The client, the customer and every number are made up.</p>
 
   <!-- before a call -->
   <main id="lobby" class="lobby">
@@ -74,9 +73,8 @@
       <div id="ho" class="panel" hidden><h2>Handed over by the AI agent</h2><p id="ho-text" class="text"></p></div>
       <div id="nudge" class="nudge" hidden></div>
       <div class="panel"><h2>Reason for the call</h2><p id="reason" class="big muted">Listening…</p></div>
-      <div class="panel"><h2>Say next</h2><p id="say" class="say muted">–</p><p id="say-en" class="say-en" hidden></p></div>
+      <div class="panel guide"><h2>What to do next</h2><div id="guide"></div></div>
       <div class="panel"><h2>Checklist</h2><ul id="checklist" class="checklist"></ul></div>
-      <div class="panel"><h2>Knowledge</h2><div id="kb"><p class="muted">The matching card appears here.</p></div></div>
       <div id="wrap" class="panel wrap" hidden></div>
     </section>
   </main>

@@ -42,6 +42,7 @@ async function api(method, path, body) {
     method,
     headers: { "xi-api-key": key, "content-type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(45000), // fail, rather than hang, when the API stalls
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}\n${text.slice(0, 1500)}`);
@@ -108,7 +109,8 @@ const COPILOT_TOOLS = {
         show_tab: str("The id of the screen tab to open."),
         highlight_row: str("The id of the one row on that tab to mark."),
         knowledge_card: str("The id of the knowledge card that covers the problem."),
-        knowledge_highlight: str("The one line of that card that matters now, copied exactly."),
+        current_step: { type: "number", description: "The number of the card's step the agent should do next. 0 when every step is done." },
+        steps_done: { type: "array", description: "The numbers of the card's steps already done.", items: { type: "number", description: "A step number." } },
         say_next: str("One or two short sentences the agent could say next, in the language of the call."),
         say_next_en: str("The same in English."),
         nudge: str("A short warning when the agent is about to break a rule. Empty otherwise."),
@@ -246,7 +248,7 @@ async function setupCallers() {
       config.callerAgentIds[k] = await upsertAgent(config.callerAgentIds[k], `Silah Demo - Caller - ${s.client} (${language})`, {
         conversation_config: {
           agent: {
-            first_message: "",
+            first_message: language === "ar" ? "ألو؟" : "Hello?",
             language,
             dynamic_variables: { dynamic_variable_placeholders: { context: "You are calling the contact centre yourself." } },
             prompt: { prompt, llm: LLM, temperature: 0.5, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },

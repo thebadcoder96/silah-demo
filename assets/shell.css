@@ -1,0 +1,32 @@
+/* Shared by the three demo pages: the black MM Intelligence banner across the
+   top, and the brand's colours and type. Each page keeps its own layout. */
+
+:root {
+  --mmi-black: #0f0f0f;
+  --mmi-violet: #6335ed;
+  --mmi-violet-deep: #5227ff;
+  --mmi-lav: #a78bfa;
+  --mmi-line: #1e1e30;
+  --ai: var(--mmi-violet);
+  --ai-soft: #f5f3ff;
+  --ai-line: rgba(99, 53, 237, .28);
+  --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+body { font-family: Outfit, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+.demo-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 9px max(20px, env(safe-area-inset-right, 0px)) 9px max(20px, env(safe-area-inset-left, 0px)); background: var(--mmi-black); color: #fafafa; border-bottom: 2px solid var(--mmi-violet); font-size: 14px; line-height: 1.4; }
+.demo-bar .brand img { display: block; height: 24px; width: auto; }
+.demo-bar span { flex: 1 1 300px; min-width: 0; color: #a6a6a6; }
+.demo-bar span b { color: #fafafa; font-weight: 600; }
+.demo-bar a { color: var(--mmi-lav); white-space: nowrap; font: 13px "Space Mono", monospace; text-decoration: none; }
+.demo-bar a:hover { color: #fff; }
+
+/* One accent, used for anything the AI does and for the main action on a page. */
+.primary { background: var(--mmi-violet) !important; }
+.primary:hover:not(:disabled) { background: var(--mmi-violet-deep) !important; }
+.toggle[aria-pressed="true"] { background: var(--mmi-violet) !important; border-color: var(--mmi-violet) !important; }
+:focus-visible { outline-color: var(--mmi-violet); }
+h1 { font-weight: 600 !important; letter-spacing: -0.02em !important; }
+
+@media (max-width: 640px) { .demo-bar { padding-inline: 16px; } }

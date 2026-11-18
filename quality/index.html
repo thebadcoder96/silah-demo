@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
   <style>
     :root {
       --bg: #fafafa; --card: #ffffff; --raised: #f4f4f5;
@@ -15,21 +15,14 @@
       --line: rgba(23, 23, 23, .08); --line-strong: rgba(23, 23, 23, .14);
       --copilot: #7c3aed; --campaign: #2563eb; --pass: #15803d; --fail: #dc2626; --warn: #a16207;
       --ease: cubic-bezier(0.22, 1, 0.36, 1);
-      --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+      --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
-    body { margin: 0; font: 15px/1.5 Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; font: 15px/1.5 Outfit, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
     button { font: inherit; cursor: pointer; }
     :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
-    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 56px; padding: 8px max(24px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--card); }
-    .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 500; white-space: nowrap; }
-    .brand span { color: var(--muted); font-weight: 400; }
-    .bar nav { display: flex; gap: 4px; margin-left: auto; }
-    .bar nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: 14px; white-space: nowrap; transition: background-color .15s var(--ease), color .15s var(--ease); }
-    .bar nav a:hover { background: var(--raised); color: var(--text); }
-    .notice { margin: 0; padding: 8px max(24px, env(safe-area-inset-left, 0px)); font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
 
     main { max-width: 1440px; margin: 0 auto; padding: 32px 24px 64px; }
     .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 24px; }
@@ -90,6 +83,9 @@
     .fine { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
     .toggle { margin-left: auto; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text-2); font-size: 13px; }
     .toggle[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
+.tools { margin-left: auto; display: flex; gap: 6px; }
+    .tools .toggle { margin-left: 0; }
+    .turn.playing { box-shadow: 0 0 0 2px var(--ai); }
     .turns { display: flex; flex-direction: column; gap: 8px; }
     .turn { max-width: 88%; padding: 8px 12px; border-radius: 12px; background: var(--raised); font-size: 14px; }
     .turn.agent { align-self: flex-end; background: #f5f3ff; }
@@ -99,21 +95,22 @@
 
     @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
     @media (max-width: 640px) {
-      .bar, .notice { padding-inline: 16px; }
-      .brand span { display: none; }
       main { padding: 24px 16px 48px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       td { white-space: nowrap; }
     }
     @media (prefers-reduced-motion: reduce) { tbody tr.new { animation: none; } }
   </style>
+  <link rel="stylesheet" href="../assets/shell.css">
 </head>
 <body>
-  <header class="bar">
-    <div class="brand">Quality desk <span>One standard, every call</span></div>
-    <nav><a href="../">All demos</a></nav>
+  <header class="demo-bar">
+    <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
+    <span><b>Quality desk.</b> A demonstration by MM Intelligence. Every client, customer and call here is made up.</span>
+    <a href="../">← All demos</a>
+    <a href="../campaign/">Campaign desk</a>
+    <a href="../copilot/">Agent copilot</a>
   </header>
-  <p class="notice">A sample quality desk by MM Intelligence. Every client, customer and call here is made up.</p>
   <main>
     <div class="head">
       <h1>Every call, scored</h1>
@@ -141,6 +138,7 @@
   <script src="../config.js"></script>
   <script type="module">
     import { createOrb } from "../lib/orb.js";
+    import { createPlayer } from "../lib/player.js";
     import { FLAGS, criteriaFor } from "../lib/scorecard.js";
     import { asClientTools, createVoice } from "../lib/voice.js";
 
@@ -167,6 +165,8 @@
     const allFlags = (c) => [...new Set([...(c.flags || []), ...(c.score?.flags || [])])].filter((f) => f in FLAGS);
 
     let known = null, selected = null, items = [], showEnglish = false;
+    const player = createPlayer();
+    let playingLine = -1;
 
     // ---------- scoring: the desk scores any call that arrives without a scorecard ----------
     const scorerId = window.SILAH_CONFIG?.scorerAgentId || "";
@@ -208,6 +208,11 @@
       const hasEnglish = c.transcript.some((x) => x.en);
       const english = el("button", { className: "toggle", textContent: "English", ariaPressed: String(showEnglish) });
       english.addEventListener("click", () => { showEnglish = !showEnglish; detail(c); });
+      const listen = el("button", { className: "toggle", textContent: playingLine >= 0 ? "■ Stop" : "▶ Listen", ariaPressed: String(playingLine >= 0) });
+      listen.addEventListener("click", () => {
+        if (playingLine >= 0) return player.stop();
+        player.all(c.audio, c.transcript.length, (n) => { playingLine = n; if (selected === c.id) detail(c); });
+      });
       $("#detail").replaceChildren(...[
         el("h2", {}, [el("span", { className: "ref", textContent: c.id }), ` · ${[c.client, c.scenario].filter(Boolean).join(" · ") || c.source}`]),
         el("p", { className: "sub", textContent: [c.source, who(c), OUTCOME[c.outcome], length(c.durationSecs), new Date(c.createdAt).toLocaleString()].filter(Boolean).join(" · ") }),
@@ -229,14 +234,15 @@
           ]);
         })),
         el("p", { className: "fine", textContent: t ? `The same checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on; unclear ones are left out of the score.` : scoring === c.id ? "Scoring this call now…" : canScore(c) ? "Waiting to be scored." : "No conversation to score." }),
-        c.transcript.length ? el("h3", {}, ["Transcript", hasEnglish ? english : null]) : null,
-        c.transcript.length ? el("div", { className: "turns" }, c.transcript.map((x) =>
-          el("div", { className: `turn ${x.who}` }, [
+        c.transcript.length ? el("h3", {}, ["Transcript", el("span", { className: "tools" }, [c.audio ? listen : null, hasEnglish ? english : null])]) : null,
+        c.transcript.length ? el("div", { className: "turns" }, c.transcript.map((x, n) =>
+          el("div", { className: `turn ${x.who} ${n === playingLine ? "playing" : ""}` }, [
             el("small", { textContent: x.who === "agent" ? who(c) : c.customer || "Customer" }),
             el("p", { textContent: x.text }),
             showEnglish && x.en ? el("p", { className: "en", textContent: x.en }) : null,
           ]))) : null,
       ].filter(Boolean));
+      if (playingLine >= 0) $("#detail .playing")?.scrollIntoView({ block: "nearest" });
     }
 
     function render() {
@@ -263,7 +269,7 @@
             flags.length ? el("span", { className: "sub2 flag", textContent: flags.length === 1 ? FLAGS[flags[0]] : `${flags.length} flags` }) : null,
           ]),
         ]);
-        tr.addEventListener("click", () => { selected = c.id; render(); });
+        tr.addEventListener("click", () => { player.stop(); playingLine = -1; selected = c.id; render(); });
         return tr;
       }));
       const open = items.find((c) => c.id === selected);

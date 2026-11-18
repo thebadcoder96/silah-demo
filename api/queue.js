@@ -42,6 +42,8 @@ export function cleanCall(input = {}) {
       transcript,
       conversationId: text(input.conversationId, 80) || undefined,
       handoverFrom: text(input.handoverFrom, 20) || undefined,
+      // Recorded lines, one file per transcript line. Only this site's own campaign recordings are accepted.
+      audio: /^\/campaign\/audio\/\d+\/$/.test(input.audio || "") ? input.audio : undefined,
     },
   };
 }

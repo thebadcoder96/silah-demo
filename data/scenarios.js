@@ -51,8 +51,9 @@ export const SCENARIOS = {
           "Open November charges and the roaming log. A phone near the causeway can pick up a Saudi network without leaving Bahrain.",
           "Raise a billing dispute for the roaming charge. The disputed amount is put on hold and is not due until the dispute is decided.",
           "Tell the customer they will get a decision by SMS within two working days.",
-          "Do not promise a refund. Only the billing team can approve one.",
+          "Repeat back what was agreed, and check nothing else is needed.",
         ],
+        caution: "Do not promise a refund. Only the billing team can approve one.",
       },
       {
         id: "bill-due", title: "Paying while a dispute is open",
@@ -110,9 +111,10 @@ export const SCENARIOS = {
           "Confirm the customer's full name and the last four digits of their CPR. Never ask for the full card number or the PIN.",
           "Open Cards and Recent activity. Read the last activity back and ask the customer to confirm it was them.",
           "If the customer recognises the activity, raise a PIN unblock request. The card works again within fifteen minutes.",
-          "The customer can set a new PIN in the Marjan app or at any Marjan cash machine.",
-          "If the customer does not recognise any activity, do not unblock. Raise a card replacement and a fraud review instead.",
+          "Tell the customer they can set a new PIN in the Marjan app or at any Marjan cash machine.",
+          "Repeat back what was agreed, and check nothing else is needed.",
         ],
+        caution: "If the customer does not recognise the activity, do not unblock. Raise a card replacement and a fraud review instead.",
       },
       {
         id: "card-replace", title: "Replacing a card",
@@ -167,7 +169,8 @@ export const SCENARIOS = {
           "Confirm the customer's full name and the last four digits of their CPR before opening the file.",
           "An appointment can be moved free of charge up to twenty-four hours before it starts.",
           "Open Free slots and offer the nearest two. Read the new day, time and centre back to the customer.",
-          "The customer gets an SMS confirming the new appointment within a few minutes.",
+          "Tell the customer an SMS confirming the new appointment arrives within a few minutes.",
+          "Repeat back what was agreed, and check nothing else is needed.",
         ],
       },
       {
@@ -196,6 +199,6 @@ export function packFor(s) {
     client: s.client,
     screen_tabs: s.tabs.map((t) => ({ tab: t.id, title: t.title, rows: t.rows.map((r) => ({ row: r.id, shows: r.cells.filter(Boolean).join(" | ") })) })),
     case_form: { title: s.form.title, fields: s.form.fields.map((f) => ({ field: f.id, label: f.label })) },
-    knowledge_cards: s.kb.map((k) => ({ card: k.id, title: k.title, lines: k.body })),
+    knowledge_cards: s.kb.map((k) => ({ card: k.id, title: k.title, steps: k.body.map((text, i) => ({ step: i + 1, text })), ...(k.caution ? { caution: k.caution } : {}) })),
   });
 }
