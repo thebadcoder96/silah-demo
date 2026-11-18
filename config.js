@@ -11,5 +11,9 @@ window.SILAH_CONFIG = {
     "government_en": "agent_8201m7p4yzecev68fgn27m0bvb48"
   },
   "copilotAgentId": "agent_8201m7p4ycegedt8nbwheejnbtvy",
-  "scorerAgentId": "agent_2501m7p5te79f5899y52v73j9g42"
+  "scorerAgentId": "agent_2501m7p5te79f5899y52v73j9g42",
+  "triageAgentIds": {
+    "ar": "agent_2601m7rbbc6ze8k97sdkjt7gbwff",
+    "en": "agent_5801m7rbbds9ej89pz05ngjfwgm3"
+  }
 };

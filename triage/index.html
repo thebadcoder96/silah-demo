@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Triage line | MM Intelligence demo</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <style>
+    :root {
+      --bg: #fafafa; --card: #ffffff; --raised: #f4f4f5;
+      --text: #171717; --text-2: #525252; --muted: #737373;
+      --line: rgba(23, 23, 23, .08); --line-strong: rgba(23, 23, 23, .14);
+      --ai: #6335ed; --ai-soft: #f5f3ff; --ok: #15803d; --warn: #a16207; --bad: #dc2626;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.5 Outfit, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+    main { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
+    .head { margin-bottom: 20px; max-width: 78ch; }
+    .eyebrow { font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--ai); }
+    .head h1 { margin: 2px 0 0; font-size: 28px; line-height: 1.15; }
+    .head p { margin: 6px 0 0; color: var(--text-2); }
+    .grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--line); }
+
+    /* the phone */
+    .handset { position: sticky; top: 20px; padding: 22px; display: flex; flex-direction: column; }
+    .label { margin: 0; font-size: 13px; color: var(--muted); }
+    .handset h2 { margin: 2px 0 0; font-size: 22px; font-weight: 600; }
+    #orb { display: block; width: 180px; height: 180px; margin: 12px auto 0; }
+    .readout { margin: 6px 0 18px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .timer { font: 700 34px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .state { font-size: 14px; color: var(--text-2); }
+    .seg { display: flex; border: 1px solid var(--line-strong); margin-bottom: 10px; }
+    .seg button { flex: 1; height: 36px; border: 0; background: none; font-size: 14px; }
+    .seg button[aria-checked="true"] { background: var(--ai); color: #fff; }
+    .call { height: 48px; border: 0; background: var(--ai); color: #fff; font-weight: 500; }
+    .call.on { background: var(--bad); }
+    .mute { height: 38px; margin-top: 8px; border: 1px solid var(--line-strong); background: none; font-size: 14px; }
+    .mute[aria-pressed="true"] { background: #fde047; border-color: #eab308; }
+    .fine { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+    .typed { display: flex; gap: 6px; margin-top: 10px; }
+    .typed input { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); font: inherit; }
+    .typed button { width: 38px; border: 0; background: var(--ai); color: #fff; }
+
+    /* what the agent has understood, and where the call goes */
+    .board { padding: 20px 22px; }
+    .board h3, .side h3 { margin: 0 0 10px; font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-weight: 400; }
+    .facts { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 18px; }
+    .fact { padding: 12px 14px; background: var(--raised); min-height: 68px; }
+    .fact span { display: block; font-size: 12px; color: var(--muted); }
+    .fact b { font-weight: 500; font-size: 16px; }
+    .fact b.none { color: var(--muted); font-weight: 400; }
+    .fact b.high { color: var(--bad); }
+    .desks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .desk { padding: 14px 16px 16px; border: 1px solid var(--line-strong); transition: border-color .25s var(--ease), background-color .25s var(--ease), box-shadow .25s var(--ease); }
+    .desk b { display: block; font-weight: 600; }
+    .desk small { display: block; color: var(--text-2); font-size: 13px; margin-top: 2px; }
+    .desk .who { margin-top: 10px; font: 12px var(--mono); color: var(--muted); }
+    .desk.on { border-color: var(--ai); background: var(--ai-soft); box-shadow: 0 0 0 2px var(--ai); }
+    .desk.on .who { color: var(--ai); }
+    .desk.ringing .who::after { content: " · ringing…"; animation: blink 1s steps(2) infinite; }
+    .desk.connected .who::after { content: " · connected"; color: var(--ok); }
+    @keyframes blink { 50% { opacity: .2; } }
+
+    .handover { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--ai); background: var(--ai-soft); animation: rise .35s var(--ease) both; }
+    .handover small { display: block; font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--ai); }
+    .handover p { margin: 4px 0 0; }
+    .handover .ref { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+    .handover a { color: var(--ai); }
+
+    .side { margin-top: 20px; padding: 20px 22px; }
+    .log { display: flex; flex-direction: column; gap: 12px; max-height: 46vh; overflow-y: auto; }
+    .idle { margin: 8px 0; color: var(--muted); font-size: 14px; }
+    .m { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; animation: rise .3s var(--ease) both; }
+    .m .w { font-size: 13px; line-height: 24px; color: var(--muted); }
+    .m p { margin: 0; line-height: 24px; unicode-bidi: plaintext; text-align: start; overflow-wrap: anywhere; }
+    .m.agent p { color: var(--text-2); }
+    .m.note { display: block; margin-left: 76px; font: 12px var(--mono); color: var(--ai); }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .handset { position: static; }
+      .facts, .desks { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/shell.css">
+</head>
+<body>
+  <header class="demo-bar">
+    <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
+    <span><b>Triage line.</b> A demonstration by MM Intelligence. The centre, its desks and its opening hours are made up.</span>
+    <a href="../">← All demos</a>
+    <a href="../quality/" target="silah-quality">Quality desk</a>
+  </header>
+  <main>
+    <div class="head">
+      <span class="eyebrow">Inbound · Triage</span>
+      <h1>Triage line</h1>
+      <p>An AI agent answers the main line. It deals with the simple questions itself, works out what everyone else needs, and puts them through to the right desk with a summary, so your agent never starts from zero.</p>
+    </div>
+    <div class="grid">
+      <section id="handset" class="panel handset" aria-label="Call">
+        <p class="label" id="client"></p>
+        <h2>Main line</h2>
+        <canvas id="orb" aria-hidden="true"></canvas>
+        <div class="readout">
+          <div id="timer" class="timer">0:00</div>
+          <div id="state" class="state" aria-live="polite">Ready</div>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="Language">
+          <button data-lang="ar" role="radio" aria-checked="true">العربية</button>
+          <button data-lang="en" role="radio" aria-checked="false">English</button>
+        </div>
+        <button id="call" class="call">Call the main line</button>
+        <button id="mute" class="mute" aria-pressed="false" hidden>Mute</button>
+        <form id="typed" class="typed" hidden>
+          <input id="typed-input" placeholder="Type what the caller says" autocomplete="off" aria-label="Type what the caller says">
+          <button aria-label="Send">➤</button>
+        </form>
+        <p id="hint" class="fine">You are the caller. Uses your microphone. Try: "what time do you open on Saturday?", "I need to move my appointment", or "I want to complain".</p>
+      </section>
+
+      <div>
+        <section class="panel board" aria-label="Triage">
+          <h3>What the AI agent has understood</h3>
+          <div class="facts">
+            <div class="fact"><span>The caller needs</span><b id="need" class="none">Listening…</b></div>
+            <div class="fact"><span>Caller</span><b id="caller" class="none">Not given yet</b></div>
+            <div class="fact"><span>Urgency</span><b id="urgency" class="none">–</b></div>
+          </div>
+          <h3>Where the call goes</h3>
+          <div id="desks" class="desks"></div>
+          <div id="handover"></div>
+        </section>
+        <section class="panel side" aria-label="Transcript">
+          <h3>Transcript</h3>
+          <div id="log" class="log" aria-live="polite"><p class="idle">Start a call to see it here.</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="../config.js"></script>
+  <script type="module">
+    import { asClientTools, createVoice } from "../lib/voice.js";
+    import { createOrb } from "../lib/orb.js";
+    import { TRIAGE } from "../data/triage.js";
+
+    const $ = (s) => document.querySelector(s);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const el = (tag, props = {}, kids = []) => { const n = Object.assign(document.createElement(tag), props); n.append(...[].concat(kids).filter(Boolean)); return n; };
+    const params = new URLSearchParams(location.search);
+    const TEXT_MODE = params.has("text"); // type instead of talking, for testing without a microphone
+    const config = window.SILAH_CONFIG || {};
+
+    let language = params.get("lang") === "en" ? "en" : "ar";
+    let st = null; // the call in progress, or the last one
+    const fresh = () => ({ lines: [], need: "", desk: "", urgency: "", caller: "", summary: "", transferred: "", connected: false, startedAt: 0, saved: false });
+
+    $("#client").textContent = TRIAGE.client;
+    if (TEXT_MODE) $("#hint").textContent = "Typing mode: you type what the caller says, and the AI agent answers in text.";
+
+    function drawLang() {
+      document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.lang === language)));
+    }
+    document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => { if (!voice.active()) { language = b.dataset.lang; drawLang(); } }));
+    drawLang();
+
+    function drawBoard() {
+      const s = st || fresh();
+      $("#need").textContent = s.need || "Listening…";
+      $("#need").className = s.need ? "" : "none";
+      $("#caller").textContent = s.caller || "Not given yet";
+      $("#caller").className = s.caller ? "" : "none";
+      $("#urgency").textContent = s.urgency ? s.urgency[0].toUpperCase() + s.urgency.slice(1) : "–";
+      $("#urgency").className = s.urgency === "high" ? "high" : s.urgency ? "" : "none";
+      $("#desks").replaceChildren(...Object.entries(TRIAGE.desks).map(([id, d]) =>
+        el("div", { className: ["desk", s.desk === id ? "on" : "", s.transferred === id ? (s.connected ? "connected" : "ringing") : ""].join(" ").trim() }, [
+          el("b", { textContent: d.name }),
+          el("small", { textContent: d.note }),
+          el("div", { className: "who", textContent: d.person ? `Rings ${d.person}'s phone` : "No transfer needed" }),
+        ])));
+    }
+    drawBoard();
+
+    function append(node) {
+      $("#log .idle")?.remove();
+      $("#log").append(node);
+      $("#log").scrollTop = $("#log").scrollHeight;
+    }
+    function say(who, text) {
+      if (who === "note") return append(el("div", { className: "m note", textContent: text }));
+      if (!st) return;
+      st.lines.push({ who: who === "user" ? "customer" : "agent", text });
+      append(el("div", { className: `m ${who}` }, [el("span", { className: "w", textContent: who === "user" ? "Caller" : "AI agent" }), el("p", { textContent: text })]));
+    }
+
+    // ---------- the agent's tools ----------
+
+    const deskOf = (id) => (id in TRIAGE.desks ? id : "cpr");
+    function show_triage(p) {
+      if (!st) return { ok: false };
+      st.need = p.need || st.need;
+      st.desk = deskOf(p.desk);
+      st.urgency = ["low", "normal", "high"].includes(p.urgency) ? p.urgency : "normal";
+      st.caller = p.caller_name || st.caller;
+      drawBoard();
+      return { ok: true };
+    }
+    function transfer_call(p) {
+      if (!st) return { ok: false };
+      const id = deskOf(p.desk) === "self" ? "cpr" : deskOf(p.desk);
+      const desk = TRIAGE.desks[id];
+      const call = st;
+      st.desk = st.transferred = id;
+      st.summary = p.summary || st.need;
+      st.caller = p.caller_name || st.caller;
+      drawBoard();
+      say("note", `Transferring to the ${desk.name}`);
+      drawHandover();
+      // In the browser the transfer is shown, not dialled. On a phone number the same step rings the desk.
+      sleep(2600).then(() => { if (st === call) { st.connected = true; drawBoard(); } });
+      return { transferred: true, desk: desk.name, note: "The caller is being put through. Say one short goodbye sentence, then end the call." };
+    }
+    function drawHandover(ref) {
+      if (!st?.transferred) return $("#handover").replaceChildren();
+      const desk = TRIAGE.desks[st.transferred];
+      $("#handover").replaceChildren(el("div", { className: "handover" }, [
+        el("small", { textContent: `What ${desk.person} sees when the phone rings` }),
+        el("p", { textContent: st.summary }),
+        ref ? el("p", { className: "ref" }, [`Saved as ${ref}. `, el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" })]) : null,
+      ]));
+    }
+
+    // ---------- the call ----------
+
+    const orb = createOrb($("#orb"));
+    let tick = null;
+    function status(s) {
+      orb.setState(s);
+      const live = s !== "idle";
+      $("#state").textContent = { idle: st ? "Call ended" : "Ready", connecting: "Calling…", listening: "Listening", speaking: "AI agent speaking" }[s];
+      $("#call").classList.toggle("on", live);
+      $("#call").textContent = live ? "End call" : "Call the main line";
+      $("#mute").hidden = !live || TEXT_MODE;
+      $("#typed").hidden = !live || !TEXT_MODE;
+      if (s === "listening" && !tick && st) {
+        st.startedAt ||= Date.now();
+        tick = setInterval(() => {
+          const n = Math.floor((Date.now() - st.startedAt) / 1000);
+          $("#timer").textContent = `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+        }, 500);
+      }
+      if (s === "idle") {
+        clearInterval(tick);
+        tick = null;
+        $("#mute").setAttribute("aria-pressed", "false");
+        $("#mute").textContent = "Mute";
+        save();
+      }
+    }
+    const voice = createVoice({ clientTools: asClientTools({ show_triage, transfer_call }), onStatus: status, onMessage: say });
+    orb.setLevel(() => Math.max(voice.levels().input, voice.levels().output));
+
+    $("#call").addEventListener("click", async () => {
+      if (voice.active()) return voice.end();
+      st = fresh();
+      $("#log").replaceChildren();
+      $("#timer").textContent = "0:00";
+      drawBoard();
+      drawHandover();
+      const ok = await voice.start({ agentId: config.triageAgentIds?.[language], textOnly: TEXT_MODE });
+      if (!ok) st = null;
+    });
+    $("#mute").addEventListener("click", () => {
+      const on = voice.mute(!voice.muted());
+      $("#mute").setAttribute("aria-pressed", String(on));
+      $("#mute").textContent = on ? "Unmute" : "Mute";
+    });
+    $("#typed").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = $("#typed-input").value.trim();
+      if (!text || !voice.send(text)) return;
+      $("#typed-input").value = "";
+      say("user", text);
+    });
+
+    // Every call goes to the same queue as the other demos, so the quality desk scores it.
+    function record() {
+      const desk = TRIAGE.desks[st.transferred || st.desk];
+      return {
+        source: "Triage", handledBy: "AI", client: TRIAGE.client, scenario: "Main line triage", customer: st.caller, language,
+        outcome: "answered", disposition: st.transferred ? `Transferred to the ${desk.name}` : "Answered by the AI agent",
+        summary: st.summary || st.need || "The caller hung up before saying what they needed.",
+        durationSecs: st.startedAt ? Math.round((Date.now() - st.startedAt) / 1000) : 0,
+        flags: [],
+        transcript: st.lines,
+      };
+    }
+    async function save() {
+      if (!st || st.saved || st.lines.length < 2) return;
+      st.saved = true;
+      try {
+        const out = await (await fetch("/api/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(record()) })).json();
+        const ref = out.call?.id || out.id;
+        if (!ref) return;
+        if (st.transferred) drawHandover(ref);
+        else say("note", `Saved as ${ref}. It is on the quality desk.`);
+      } catch {
+        say("note", "The call could not be saved.");
+      }
+    }
+    addEventListener("pagehide", () => {
+      if (st && !st.saved && st.lines.length >= 2) navigator.sendBeacon("/api/queue", new Blob([JSON.stringify(record())], { type: "application/json" }));
+    });
+  </script>
+</body>
+</html>

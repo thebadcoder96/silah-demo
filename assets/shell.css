@@ -30,3 +30,7 @@ body { font-family: Outfit, "IBM Plex Sans Arabic", system-ui, -apple-system, "S
 h1 { font-weight: 600 !important; letter-spacing: -0.02em !important; }
 
 @media (max-width: 640px) { .demo-bar { padding-inline: 16px; } }
+
+/* The small label above a page title: which part of the centre this demo is. */
+.eyebrow { display: block; font: 11px "Space Mono", monospace; text-transform: uppercase; letter-spacing: 1.2px; color: var(--mmi-violet); margin-bottom: 2px; }
+.pitch { margin: 6px 0 12px; color: #525252; max-width: 76ch; }

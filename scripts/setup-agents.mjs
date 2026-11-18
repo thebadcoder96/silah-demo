@@ -6,6 +6,7 @@
 //   node scripts/setup-agents.mjs --only copilot  just the copilot
 //   node scripts/setup-agents.mjs --only callers  just the AI callers
 //   node scripts/setup-agents.mjs --only scorer   just the quality desk's scorer
+//   node scripts/setup-agents.mjs --only triage   just the triage line
 //
 // Needs ELEVENLABS_API_KEY in .env. Voices are set explicitly and expressive
 // mode is off on every agent.
@@ -31,9 +32,12 @@ const TTS_MODEL = "eleven_v4_turbo";
 // the ElevenLabs library, added to the account the first time this runs.
 // Change them here after listening on voices.html.
 const VOICES = {
-  ar: { male: "TfevL8tqOhb9PBTrfU9u" /* Sahl */, female: "oOucsh1OZElozgDVjcfe" /* Rafoush */, female2: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
+  ar: { male: "Dh7ijKbaKhas3blqwrt3" /* Salim, a voice made on this account */, female: "oOucsh1OZElozgDVjcfe" /* Rafoush */, female2: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
   en: { male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "cuTixVvCOWFxeH3oGE9m" /* Clara */, female2: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
 };
+// The AI agents that speak for the centre: Nasser in Arabic, and in English the
+// voice of the Montgomery 311 line.
+const AGENT_VOICE = { ar: "cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily - Authentic Saudi Pro */, en: "J3Ei0Lj6fAobhIqY5ySH" /* Paul, the 311 line */ };
 // Two scenarios have female callers; give the second one a different voice.
 const voiceFor = (scenario, language) => VOICES[language][scenario.id === "government" ? "female2" : scenario.caller.gender];
 
@@ -144,6 +148,33 @@ const SCORER_TOOLS = {
       properties: {
         scorecard: COPILOT_TOOLS.finish_call.parameters.properties.scorecard,
         flags: COPILOT_TOOLS.finish_call.parameters.properties.flags,
+      },
+    },
+  },
+};
+const TRIAGE_TOOLS = {
+  show_triage: {
+    description: "Show what you have understood so far. Call it as soon as you know what the caller needs, and again if that changes.",
+    parameters: {
+      type: "object",
+      required: ["need", "desk", "urgency"],
+      properties: {
+        need: str("What the caller needs, in a short English phrase."),
+        desk: str("Where it belongs: cpr, complaints, or self when you can answer it yourself."),
+        urgency: str("low, normal or high."),
+        caller_name: str("The caller's name, once you have it."),
+      },
+    },
+  },
+  transfer_call: {
+    description: "Put the caller through to a desk. Call it once, after telling the caller.",
+    parameters: {
+      type: "object",
+      required: ["desk", "summary", "caller_name"],
+      properties: {
+        desk: str("cpr or complaints."),
+        summary: str("For the person picking up, in English, two sentences at most: who is calling, what they need, what you already told them."),
+        caller_name: str("The caller's name, or an empty string if they did not give one."),
       },
     },
   },
@@ -264,7 +295,38 @@ async function setupCallers() {
   }
 }
 
+async function setupTriage() {
+  console.log("Triage line");
+  const read = await doc("triage.md");
+  config.triageAgentIds ||= {};
+  // Both languages share one set of tools.
+  const first = config.triageAgentIds.ar || config.triageAgentIds.en;
+  const existing = first ? (await api("GET", `/v1/convai/agents/${first}`).catch(() => null))?.conversation_config.agent.prompt.tool_ids || [] : [];
+  const tool_ids = await syncTools(TRIAGE_TOOLS, existing);
+  for (const language of ["ar", "en"]) {
+    const name = language === "ar" ? "Arabic" : "English";
+    const voice_id = AGENT_VOICE[language];
+    await ensureVoice(voice_id);
+    const id = config.triageAgentIds[language];
+    config.triageAgentIds[language] = await upsertAgent(id, `Silah Demo - Triage line (${language})`, {
+      conversation_config: {
+        agent: {
+          first_message: read(`First message: ${name}`),
+          language,
+          prompt: { prompt: read("System prompt").replace("[[language_rules]]", read(`Language rules: ${name}`)), llm: LLM, temperature: 0.2, tool_ids, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
+        },
+        tts: { voice_id, model_id: TTS_MODEL, expressive_mode: false },
+        asr: { keywords: ["Khidmati", "CPR"] },
+        conversation: { max_duration_seconds: 600, client_events: EVENTS },
+      },
+      platform_settings: TEXT_MODE_ALLOWED,
+    });
+    await saveConfig();
+  }
+}
+
 try {
+  if (!only || only === "triage") await setupTriage();
   if (!only || only === "copilot") await setupCopilot();
   if (!only || only === "callers") await setupCallers();
   if (!only || only === "scorer") await setupScorer();

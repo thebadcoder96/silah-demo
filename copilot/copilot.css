@@ -38,9 +38,23 @@ button { cursor: pointer; }
 /* ---------- lobby ---------- */
 .lobby { width: 100%; max-width: 920px; margin: 0 auto; padding: 56px 24px; }
 .lobby h1 { margin: 0; font-size: 36px; font-weight: 500; letter-spacing: -.02em; }
-.lead { margin: 4px 0 28px; color: var(--text-2); font-size: 17px; }
+.lead { margin: 6px 0 28px; color: var(--text-2); font-size: 17px; max-width: 68ch; }
+.lobby .seg, .lobby .seg button, .lobby .primary { border-radius: 0; }
+
+/* the copilot's hand: a pointer that is seen moving, clicking and typing */
+.hand { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; opacity: 0; display: flex; align-items: flex-start; transition: transform .55s var(--ease), opacity .25s var(--ease); }
+.hand.show { opacity: 1; }
+.hand i { width: 20px; height: 24px; background: var(--ai); clip-path: polygon(0 0, 0 76%, 25% 59%, 43% 100%, 59% 93%, 42% 53%, 76% 53%); transition: transform .12s var(--ease); transform-origin: 0 0; }
+.hand span { margin: 16px 0 0 -2px; padding: 2px 8px; background: var(--ai); color: #fff; font: 11px var(--mono); white-space: nowrap; box-shadow: 0 4px 14px rgba(99, 53, 237, .35); }
+.hand::before { content: ""; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ai); opacity: 0; }
+.hand.click i { transform: scale(.78); }
+.hand.click::before { animation: handclick .4s var(--ease); }
+@keyframes handclick { from { opacity: .9; transform: scale(.3); } to { opacity: 0; transform: scale(1.5); } }
+.field.typing input { border-color: var(--ai); background: var(--ai-soft); box-shadow: 0 0 0 2px var(--ai-line); }
+.say-before { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--ai-line); font-size: 13px; color: var(--muted); unicode-bidi: plaintext; text-align: start; }
+.say-before b { font-weight: 500; }
 .scenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.scenario { text-align: start; padding: 18px 20px 20px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--card); display: flex; flex-direction: column; gap: 2px; transition: border-color .15s var(--ease), box-shadow .15s var(--ease); }
+.scenario { text-align: start; padding: 18px 20px 20px; border-radius: 0; border: 1px solid var(--line-strong); background: var(--card); display: flex; flex-direction: column; gap: 2px; transition: border-color .15s var(--ease), box-shadow .15s var(--ease); }
 .scenario small { font-size: 12px; color: var(--muted); }
 .scenario b { font-size: 18px; font-weight: 500; }
 .scenario span { color: var(--text-2); font-size: 14px; }

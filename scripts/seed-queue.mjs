@@ -20,11 +20,11 @@ const CALLS = [
     outcome: "answered",
     disposition: "Confirmed",
     durationSecs: 48,
-    summary: "Reminder for an ID card renewal appointment on Sunday at ten. The customer confirmed she will attend.",
+    summary: "Reminder for an CPR card renewal appointment on Sunday at ten. The customer confirmed she will attend.",
     transcript: [
       { who: "agent", text: "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت مريم؟", en: "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Maryam?" },
       { who: "customer", text: "وعليكم السلام، إي نعم أنا مريم.", en: "And upon you peace. Yes, this is Maryam." },
-      { who: "agent", text: "حبيت أذكرج بموعد تجديد البطاقة يوم الأحد الساعة عشر الصبح. بتحضرين؟", en: "I wanted to remind you of your ID card renewal appointment on Sunday at ten in the morning. Will you attend?" },
+      { who: "agent", text: "حبيت أذكرج بموعد تجديد البطاقة يوم الأحد الساعة عشر الصبح. بتحضرين؟", en: "I wanted to remind you of your CPR card renewal appointment on Sunday at ten in the morning. Will you attend?" },
       { who: "customer", text: "إي إن شاء الله بحضر.", en: "Yes, God willing, I will attend." },
       { who: "agent", text: "تمام، أكدت لج الموعد: الأحد الساعة عشر. تبين شي ثاني؟", en: "Great, I have confirmed your appointment: Sunday at ten. Do you need anything else?" },
       { who: "customer", text: "لا مشكورة.", en: "No, thank you." },

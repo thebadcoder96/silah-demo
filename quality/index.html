@@ -58,7 +58,7 @@
     .sub2 { display: block; color: var(--muted); font-size: 13px; }
     .tag { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--text-2); }
     .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-    .tag.copilot::before { background: var(--copilot); } .tag.campaign::before { background: var(--campaign); }
+    .tag.copilot::before { background: var(--copilot); } .tag.campaign::before { background: var(--campaign); } .tag.triage::before { background: var(--mmi-violet); }
     .score { font: 500 13px/21px var(--mono); white-space: nowrap; }
     .score.none { color: var(--muted); font-weight: 400; }
     .sub2.flag { color: var(--warn); }
@@ -109,11 +109,16 @@
     <span><b>Quality desk.</b> A demonstration by MM Intelligence. Every client, customer and call here is made up.</span>
     <a href="../">← All demos</a>
     <a href="../campaign/">Campaign desk</a>
+    <a href="../triage/">Triage line</a>
     <a href="../copilot/">Agent copilot</a>
   </header>
   <main>
     <div class="head">
-      <h1>Every call, scored</h1>
+      <div style="flex: 1 1 420px">
+        <span class="eyebrow">Behind every call · Quality</span>
+        <h1>Every call, scored</h1>
+        <p class="pitch" style="margin-bottom: 0">Calls from the other demos land here on their own. Each one is scored against your checklist, the same standard for an AI agent and a person, with the line that earned each mark and a flag on the calls a supervisor should hear.</p>
+      </div>
       <div id="live" class="live"><canvas id="orb" aria-hidden="true"></canvas><span>Live · updates every 2 seconds</span></div>
       <button id="clear" class="ghost">Clear demo queue</button>
     </div>

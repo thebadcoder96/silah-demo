@@ -8,7 +8,7 @@
 import { CRITERIA, FLAGS } from "../lib/scorecard.js";
 import { addCall, clearCalls, getCall, isStoreError, listCalls, saveScore } from "../lib/store.js";
 
-export const SOURCES = ["Copilot", "Campaign"];
+export const SOURCES = ["Copilot", "Campaign", "Triage"];
 // The same outcome names the ElevenLabs calling API returns, so real and simulated calls look alike.
 export const OUTCOMES = ["answered", "voicemail", "busy", "no_answer", "failed"];
 
@@ -29,7 +29,7 @@ export function cleanCall(input = {}) {
     call: {
       source: input.source,
       simulated: Boolean(input.simulated),
-      handledBy: oneOf(input.handledBy, ["AI", "Human"], input.source === "Campaign" ? "AI" : "Human"),
+      handledBy: oneOf(input.handledBy, ["AI", "Human"], input.source === "Copilot" ? "Human" : "AI"),
       client: text(input.client, 80),
       scenario: text(input.scenario, 120),
       customer: text(input.customer, 80),

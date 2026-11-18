@@ -31,7 +31,7 @@ const CHECKS = { greeting: "Greeting", identity: "Identity check", recap: "Recap
 
 let scenario = SCENARIOS[params.get("call")] || SCENARIO_LIST[0];
 let language = params.get("lang") === "en" ? "en" : "ar";
-const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, flashTab: null, queuedView: null, fields: {}, checks: {}, card: null, step: null, done: [], say: "", sayEn: "", wrap: null, wrapLate: false, saved: null, saving: null, saveFailed: false, english: false, conversationId: "" });
+const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, flashTab: null, queuedView: null, fields: {}, checks: {}, card: null, step: null, done: [], say: "", sayEn: "", sayBefore: "", sayAt: 0, wrap: null, wrapLate: false, saved: null, saving: null, saveFailed: false, english: false, conversationId: "" });
 let st = fresh();
 
 // A call handed over by the campaign desk's AI agent arrives as ?handover=<reference>.
@@ -56,15 +56,55 @@ function toast(text) {
 }
 
 /** Type text into a field a character at a time, so the agent can see the copilot working. */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** Slow enough to watch, never more than about a second and a half for one value. */
+const typingPause = (text) => Math.max(14, Math.min(42, 1400 / (text.length || 1)));
 async function typeInto(input, text) {
   input.classList.add("filling");
   input.value = "";
-  const pause = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : Math.max(10, Math.min(30, 900 / (text.length || 1)));
+  const pause = REDUCED ? 0 : typingPause(text);
   for (const ch of text) {
     input.value += ch;
     if (pause) await sleep(pause);
   }
   input.classList.remove("filling");
+}
+
+// ---------- the copilot's hand ----------
+// Everything the copilot does on the client's system is acted out, so it can
+// be seen working: a pointer moves to the control, clicks it, and types.
+// Acts run one after another, in the order the copilot asked for them.
+
+const hand = el("div", { className: "hand" }, [el("i"), el("span", { textContent: "Copilot" })]);
+document.body.append(hand);
+let acts = Promise.resolve();
+let handTimer;
+function act(fn) {
+  acts = acts.then(fn).catch((err) => console.error(err));
+}
+/** Move the pointer to a control and click it. label says what the copilot is doing. */
+async function pointAt(selector, label) {
+  const node = document.querySelector(selector);
+  if (!node || REDUCED || phase !== "live") return;
+  node.scrollIntoView({ block: "nearest" });
+  const r = node.getBoundingClientRect();
+  clearTimeout(handTimer);
+  if (!hand.classList.contains("show")) {
+    // come in from the copilot's own column, not from a corner of the window
+    const from = $(".col.copilot").getBoundingClientRect();
+    hand.style.transition = "none";
+    hand.style.transform = `translate(${from.left + 24}px, ${from.top + 60}px)`;
+    hand.getBoundingClientRect();
+    hand.style.transition = "";
+  }
+  hand.lastChild.textContent = label;
+  hand.classList.add("show");
+  hand.style.transform = `translate(${r.left + Math.min(r.width / 2, 90)}px, ${r.top + r.height / 2}px)`;
+  await sleep(560);
+  hand.classList.add("click");
+  await sleep(220);
+  hand.classList.remove("click");
+  handTimer = setTimeout(() => hand.classList.remove("show"), 1600);
 }
 
 // ---------- lobby ----------
@@ -272,6 +312,28 @@ async function startBrain() {
 
 // ---------- the brain's tools: these move the screen ----------
 
+/**
+ * Show a new line to say. The one on screen stays long enough to be read out
+ * (longer for a longer line), and then moves down as "Before" instead of vanishing.
+ */
+let sayTimer;
+function suggest(text, en) {
+  if (text === st.say) return;
+  const call = st;
+  const wait = st.say ? Math.min(10000, Math.max(4500, st.say.length * 75)) - (Date.now() - st.sayAt) : 0;
+  clearTimeout(sayTimer);
+  const show = () => {
+    if (st !== call) return;
+    st.sayBefore = st.say;
+    st.say = text;
+    st.sayEn = en;
+    st.sayAt = Date.now();
+    drawGuide();
+  };
+  if (wait <= 0) show();
+  else sayTimer = setTimeout(show, wait);
+}
+
 async function update_screen(p) {
   const out = { ok: true };
   for (const t of p.translations || []) {
@@ -282,7 +344,7 @@ async function update_screen(p) {
     $("#reason").textContent = p.call_reason;
     $("#reason").className = "big";
   }
-  if (p.customer_search) out.customer_record = await search(p.customer_search);
+  if (p.customer_search) out.customer_record = search(p.customer_search);
   if (p.show_tab || p.highlight_row) out.screen = view(p.show_tab, p.highlight_row);
   if (p.knowledge_card) {
     if (scenario.kb.some((k) => k.id === p.knowledge_card)) st.card = p.knowledge_card;
@@ -290,10 +352,7 @@ async function update_screen(p) {
   }
   if (Array.isArray(p.steps_done)) st.done = p.steps_done.map(Number);
   if (p.current_step !== undefined) st.step = Number(p.current_step);
-  if (p.say_next) {
-    st.say = p.say_next;
-    st.sayEn = p.say_next_en || "";
-  }
+  if (p.say_next) suggest(p.say_next, p.say_next_en || "");
   drawGuide();
   if (p.nudge !== undefined) {
     $("#nudge").textContent = p.nudge;
@@ -325,18 +384,22 @@ const brain = createVoice({
 
 // ---------- the client's system ----------
 
-async function search(query) {
-  await typeInto($("#sys-search"), query);
+function search(query) {
   const c = scenario.customer;
   const q = query.toLowerCase();
   const names = [...c.name.toLowerCase().split(" "), ...c.nameAr.split(" ")].filter((w) => w.length > 2);
   const hit = names.some((w) => q.includes(w)) || q.replace(/\D/g, "").includes(c.cprLast4) || q.includes(c.account.toLowerCase());
-  if (!hit) {
-    if (st.identity === "none") $("#sys-body").replaceChildren(el("p", { className: "hint", textContent: `No customer matched “${query}”.` }));
-    return { found: false, note: "No customer matched. The agent should ask for the name and CPR digits again." };
-  }
-  if (st.identity === "none") st.identity = "found";
-  drawSystem();
+  act(async () => {
+    await pointAt("#sys-search", "Searching");
+    await typeInto($("#sys-search"), query);
+    if (!hit) {
+      if (st.identity === "none") $("#sys-body").replaceChildren(el("p", { className: "hint", textContent: `No customer matched “${query}”.` }));
+      return;
+    }
+    if (st.identity === "none") st.identity = "found";
+    drawSystem();
+  });
+  if (!hit) return { found: false, note: "No customer matched. The agent should ask for the name and CPR digits again." };
   return {
     found: true,
     name: c.name,
@@ -356,19 +419,31 @@ function view(tabId, rowId) {
     st.queuedView = { tab: tab.id, row };
     return { shown: false, reason: "Queued. It opens when the agent confirms the customer's identity." };
   }
-  if (st.tab !== tab.id) st.flashTab = tab.id; // the copilot changed the tab: make that visible
-  st.tab = tab.id;
-  st.spot = row;
-  drawSystem();
+  act(async () => {
+    if (st.identity !== "confirmed") return;
+    if (st.tab !== tab.id) {
+      await pointAt(`#tab-${tab.id}`, `Opening ${tab.title}`);
+      st.flashTab = tab.id;
+      st.tab = tab.id;
+      st.spot = null;
+      drawSystem();
+      await sleep(REDUCED ? 0 : 300);
+    }
+    if (row && st.spot !== row) await pointAt(`#row-${row}`, "This is the one");
+    st.spot = row;
+    drawSystem();
+  });
   return { shown: true, tab: tab.id, row };
 }
 
 function confirmIdentity() {
   st.identity = "confirmed";
-  st.tab = st.queuedView?.tab || scenario.tabs[0].id;
-  st.spot = st.queuedView?.row || null;
+  st.tab = scenario.tabs[0].id;
+  st.spot = null;
   $("#nudge").hidden = true; // the usual warning at this point is "confirm identity first"
   drawSystem();
+  if (st.queuedView) view(st.queuedView.tab, st.queuedView.row); // what the copilot had lined up, now acted out
+  st.queuedView = null;
   feed("[NOTE] The agent pressed Confirm identity. The customer's record is now open on the agent's screen.");
 }
 
@@ -377,10 +452,27 @@ function propose(fields) {
   for (const f of fields) {
     if (!scenario.form.fields.some((x) => x.id === f.field) || !f.value) continue;
     if (st.fields[f.field]?.status === "approved") continue; // never overwrite what the agent approved
-    st.fields[f.field] = { value: String(f.value), heard: f.heard || "", status: "proposed", fresh: true };
+    st.fields[f.field] = { value: String(f.value), heard: f.heard || "", status: "proposed", typing: true, shown: "" };
     taken.push(f.field);
   }
   drawCase();
+  const call = st;
+  act(async () => {
+    for (const id of taken) {
+      const f = call.fields[id];
+      if (!f?.typing || st !== call) continue;
+      await pointAt(`#f-${id}`, `Filling ${scenario.form.fields.find((d) => d.id === id).label}`);
+      const pause = REDUCED ? 0 : typingPause(f.value);
+      for (const ch of f.value) {
+        f.shown += ch;
+        const input = document.getElementById(`f-${id}`);
+        if (input?.readOnly) input.value = f.shown;
+        if (pause) await sleep(pause);
+      }
+      f.typing = false;
+      if (st === call) drawCase();
+    }
+  });
   return { proposed: taken, note: "Shown as proposals. Nothing is saved until the agent approves." };
 }
 
@@ -407,7 +499,7 @@ function drawCase() {
     el("h3", {}, [scenario.form.title, all]),
     ...scenario.form.fields.map((def) => {
       const f = st.fields[def.id];
-      const input = el("input", { id: `f-${def.id}`, value: f?.value || "", readOnly: true, ariaLabel: def.label });
+      const input = el("input", { id: `f-${def.id}`, value: (f?.typing ? f.shown : f?.value) || "", readOnly: true, ariaLabel: def.label });
       const settle = () => { st.fields[def.id] = { ...(st.fields[def.id] || { heard: "" }), value: input.value.trim(), status: input.value.trim() ? "approved" : undefined }; if (!input.value.trim()) delete st.fields[def.id]; drawCase(); tellApproved(); };
       input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
       input.addEventListener("blur", () => !input.readOnly && settle());
@@ -415,12 +507,11 @@ function drawCase() {
       approve.addEventListener("click", () => { f.status = "approved"; drawCase(); tellApproved(); });
       const edit = el("button", { className: "ghost", textContent: "Edit" });
       edit.addEventListener("click", () => { input.readOnly = false; input.focus(); input.select(); });
-      if (f?.fresh) { f.fresh = false; typeInto(input, f.value); }
-      return el("div", { className: `field ${f?.status || ""}` }, [
+      return el("div", { className: `field ${f?.status || ""} ${f?.typing ? "typing" : ""}` }, [
         el("label", { htmlFor: input.id, textContent: def.label }),
         input,
-        el("div", { className: "acts" }, f?.status === "approved" ? [el("span", { className: "ok", textContent: "✓ Approved" }), edit] : f ? [approve, edit] : [edit]),
-        f?.heard && f.status === "proposed" ? el("span", { className: "heard", textContent: `Heard: “${f.heard}”` }) : null,
+        el("div", { className: "acts" }, f?.status === "approved" ? [el("span", { className: "ok", textContent: "✓ Approved" }), edit] : f && !f.typing ? [approve, edit] : [edit]),
+        f?.heard && f.status === "proposed" && !f.typing ? el("span", { className: "heard", textContent: `Heard: “${f.heard}”` }) : null,
       ]);
     }),
   );
@@ -443,7 +534,7 @@ function drawSystem() {
     parts.push(
       el("div", {}, [
         el("div", { className: "tabs", role: "tablist" }, scenario.tabs.map((t) => {
-          const b = el("button", { role: "tab", className: [t.id === tab.id ? "on" : "", t.id === st.flashTab ? "flash" : ""].join(" ").trim(), textContent: t.title });
+          const b = el("button", { id: `tab-${t.id}`, role: "tab", className: [t.id === tab.id ? "on" : "", t.id === st.flashTab ? "flash" : ""].join(" ").trim(), textContent: t.title });
           b.addEventListener("click", () => { st.tab = t.id; drawSystem(); });
           return b;
         })),
@@ -471,6 +562,7 @@ function sayBox() {
     el("small", { textContent: "Say" }),
     el("p", { className: "say", textContent: st.say }),
     st.english && st.sayEn ? el("p", { className: "say-en", textContent: st.sayEn }) : null,
+    st.sayBefore ? el("p", { className: "say-before" }, [el("b", { textContent: "Before: " }), st.sayBefore]) : null,
   ]);
 }
 
