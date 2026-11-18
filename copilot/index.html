@@ -24,6 +24,7 @@
   <main id="lobby" class="lobby">
     <h1>Take a call</h1>
     <p class="lead">You are the agent. Answer, and help the customer.</p>
+    <div id="handover" class="handover" hidden></div>
     <div id="scenarios" class="scenarios" role="radiogroup" aria-label="Call"></div>
     <div class="row">
       <div class="seg" role="radiogroup" aria-label="Caller's language">
@@ -70,6 +71,7 @@
     </section>
 
     <section class="col copilot" aria-label="Copilot">
+      <div id="ho" class="panel" hidden><h2>Handed over by the AI agent</h2><p id="ho-text" class="text"></p></div>
       <div id="nudge" class="nudge" hidden></div>
       <div class="panel"><h2>Reason for the call</h2><p id="reason" class="big muted">Listening…</p></div>
       <div class="panel"><h2>Say next</h2><p id="say" class="say muted">–</p><p id="say-en" class="say-en" hidden></p></div>

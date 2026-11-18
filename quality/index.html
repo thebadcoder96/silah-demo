@@ -138,9 +138,11 @@
       <div class="box detail" id="detail"><p class="sub">Select a call to see its transcript and scorecard</p></div>
     </div>
   </main>
+  <script src="../config.js"></script>
   <script type="module">
     import { createOrb } from "../lib/orb.js";
     import { FLAGS, criteriaFor } from "../lib/scorecard.js";
+    import { asClientTools, createVoice } from "../lib/voice.js";
 
     const $ = (s) => document.querySelector(s);
     const orb = createOrb($("#orb"));
@@ -159,11 +161,46 @@
     function tally(c) {
       if (!c.score?.criteria) return null;
       const applicable = criteriaFor(c.handledBy).map((k) => c.score.criteria.find((x) => x.id === k.id)?.result || "unknown");
-      return { passed: applicable.filter((r) => r === "pass").length, of: applicable.length };
+      const judged = applicable.filter((r) => r !== "unknown");
+      return judged.length ? { passed: judged.filter((r) => r === "pass").length, of: judged.length } : null;
     }
     const allFlags = (c) => [...new Set([...(c.flags || []), ...(c.score?.flags || [])])].filter((f) => f in FLAGS);
 
     let known = null, selected = null, items = [], showEnglish = false;
+
+    // ---------- scoring: the desk scores any call that arrives without a scorecard ----------
+    const scorerId = window.SILAH_CONFIG?.scorerAgentId || "";
+    const tried = new Set();
+    let scoring = null, gotScore = null;
+    const scorer = createVoice({ clientTools: asClientTools({ score_call: (p) => { gotScore?.(p); return { ok: true }; } }) });
+    const canScore = (c) => !c.score && c.transcript.length > 0;
+    async function scoreNext() {
+      if (scoring || !scorerId || scorer.active()) return;
+      const c = items.slice().reverse().find((x) => canScore(x) && !tried.has(x.id)); // oldest first
+      if (!c) return;
+      scoring = c.id;
+      tried.add(c.id);
+      render();
+      try {
+        const answer = new Promise((ok, fail) => { gotScore = ok; setTimeout(() => fail(new Error("the scorer did not answer")), 40000); });
+        if (!(await scorer.start({ agentId: scorerId, textOnly: true }))) throw new Error("the scorer did not start");
+        scorer.send([
+          `Handled by: ${c.handledBy === "AI" ? "an AI agent" : "a human agent"}`,
+          `Call: ${c.source === "Campaign" ? "outbound" : "inbound"}, ${c.language === "ar" ? "Arabic" : "English"}, outcome ${c.outcome}`,
+          "TRANSCRIPT",
+          ...c.transcript.map((x) => `${x.who === "agent" ? "AGENT" : "CUSTOMER"}: ${x.text}`),
+        ].join("\n"));
+        const p = await answer;
+        await fetch(`/api/queue?score=${c.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "Scorer", criteria: p.scorecard, flags: p.flags || [] }) });
+      } catch (err) {
+        console.error(c.id, err);
+      } finally {
+        gotScore = null;
+        scorer.end();
+        scoring = null;
+        poll();
+      }
+    }
 
     function detail(c) {
       const t = tally(c);
@@ -191,7 +228,7 @@
             got?.evidence ? el("q", { textContent: got.evidence }) : null,
           ]);
         })),
-        el("p", { className: "fine", textContent: t ? `The same ${t.of} checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on.` : "Not scored yet." }),
+        el("p", { className: "fine", textContent: t ? `The same checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on; unclear ones are left out of the score.` : scoring === c.id ? "Scoring this call now…" : canScore(c) ? "Waiting to be scored." : "No conversation to score." }),
         c.transcript.length ? el("h3", {}, ["Transcript", hasEnglish ? english : null]) : null,
         c.transcript.length ? el("div", { className: "turns" }, c.transcript.map((x) =>
           el("div", { className: `turn ${x.who}` }, [
@@ -222,7 +259,7 @@
           el("td", { className: "nowrap", textContent: who(c) }),
           el("td", { className: "nowrap" }, [OUTCOME[c.outcome] || c.outcome, c.simulated ? el("span", { className: "sub2", textContent: "Simulated" }) : null]),
           el("td", { className: "nowrap" }, [
-            el("span", { className: `score ${t ? "" : "none"}`, textContent: t ? `${t.passed} / ${t.of}` : "Not scored" }),
+            el("span", { className: `score ${t ? "" : "none"}`, textContent: t ? `${t.passed} / ${t.of}` : scoring === c.id ? "Scoring…" : canScore(c) ? "Waiting" : "–" }),
             flags.length ? el("span", { className: "sub2 flag", textContent: flags.length === 1 ? FLAGS[flags[0]] : `${flags.length} flags` }) : null,
           ]),
         ]);
@@ -244,6 +281,7 @@
         orb.setState("listening");
         $("#live span").textContent = "Live · updates every 2 seconds";
         if (known === null || signature(next) !== signature(items)) { items = next; render(); }
+        scoreNext();
       } catch {
         $("#live").className = "live off";
         orb.setState("idle");

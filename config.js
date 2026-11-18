@@ -10,5 +10,6 @@ window.SILAH_CONFIG = {
     "government_ar": "agent_1601m7p4yyb4ehgvc0ffqyydw6kt",
     "government_en": "agent_8201m7p4yzecev68fgn27m0bvb48"
   },
-  "copilotAgentId": "agent_8201m7p4ycegedt8nbwheejnbtvy"
+  "copilotAgentId": "agent_8201m7p4ycegedt8nbwheejnbtvy",
+  "scorerAgentId": "agent_2501m7p5te79f5899y52v73j9g42"
 };

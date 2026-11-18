@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "seed": "node scripts/seed-queue.mjs",
-    "voices": "node scripts/make-voice-page.mjs"
+    "voices": "node scripts/make-voice-page.mjs",
+    "agents": "node scripts/setup-agents.mjs"
   },
   "engines": {
     "node": ">=20"

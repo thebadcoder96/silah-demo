@@ -35,4 +35,6 @@ When you receive `CALL ENDED`, first call `update_screen` for any new lines that
 - `disposition`: a few words, such as "Dispute raised" or "Appointment moved".
 - `ticket_title`: a short title for the case.
 - `flags`: any of `missed_identity_check` (account details discussed before identity was confirmed), `customer_upset`, `promised_callback`, `asked_for_person`, `do_not_call`.
-- `scorecard`: judge the AGENT on each of `greeting`, `identity`, `resolution`, `recap`, `courtesy`, `closing`. Give `pass`, `fail` or `unknown`, and as evidence the agent's line that shows it, quoted exactly, or a few words saying what was missing. Be fair and strict: a step that did not happen is a fail.
+- `scorecard`: judge the AGENT on each of these:
+[[criteria]]
+  Give `pass`, `fail` or `unknown`, and as evidence the agent's line that shows it, quoted exactly, or a few words saying what was missing. Be fair and strict: a step that did not happen is a fail.

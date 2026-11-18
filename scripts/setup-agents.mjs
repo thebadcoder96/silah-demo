@@ -5,6 +5,7 @@
 //   node scripts/setup-agents.mjs                 everything
 //   node scripts/setup-agents.mjs --only copilot  just the copilot
 //   node scripts/setup-agents.mjs --only callers  just the AI callers
+//   node scripts/setup-agents.mjs --only scorer   just the quality desk's scorer
 //
 // Needs ELEVENLABS_API_KEY in .env. Voices are set explicitly and expressive
 // mode is off on every agent.
@@ -12,6 +13,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { SCENARIO_LIST, callerKey } from "../data/scenarios.js";
+import { CRITERIA, FLAGS, criteriaFor } from "../lib/scorecard.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const key = (await readFile(`${root}.env`, "utf8").catch(() => "")).match(/^\s*ELEVENLABS_API_KEY\s*=\s*"?([^"\r\n]+)/m)?.[1].trim() || process.env.ELEVENLABS_API_KEY;
@@ -131,6 +133,23 @@ const COPILOT_TOOLS = {
   },
 };
 
+const SCORER_TOOLS = {
+  score_call: {
+    description: "Give the scorecard for the call. Call it exactly once.",
+    parameters: {
+      type: "object",
+      required: ["scorecard"],
+      properties: {
+        scorecard: COPILOT_TOOLS.finish_call.parameters.properties.scorecard,
+        flags: COPILOT_TOOLS.finish_call.parameters.properties.flags,
+      },
+    },
+  },
+};
+// The one standard, written out for a prompt.
+const criteriaText = (list) => list.map((c) => `- \`${c.id}\` (${c.label}${c.appliesTo ? `, ${c.appliesTo} agents only` : ""}): ${c.what}`).join("\n");
+const flagsText = Object.entries(FLAGS).map(([id, label]) => `- \`${id}\`: ${label.toLowerCase()}`).join("\n");
+
 async function syncTools(defs, existingIds = []) {
   const names = await Promise.all(existingIds.map(async (id) => (await api("GET", `/v1/convai/tools/${id}`)).tool_config.name));
   const ids = [];
@@ -182,9 +201,29 @@ async function setupCopilot() {
         first_message: "",
         language: "en",
         dynamic_variables: { dynamic_variable_placeholders: { client: "the client", language: "English", pack: "{}" } },
-        prompt: { prompt: read("System prompt"), llm: LLM, temperature: 0, tool_ids },
+        prompt: { prompt: read("System prompt").replace("[[criteria]]", criteriaText(criteriaFor("Human"))), llm: LLM, temperature: 0, tool_ids },
       },
       conversation: { text_only: true, max_duration_seconds: 1800, client_events: EVENTS },
+    },
+    platform_settings: TEXT_MODE_ALLOWED,
+  });
+  await saveConfig();
+}
+
+async function setupScorer() {
+  console.log("Scorer");
+  const read = await doc("scorer.md");
+  let existing = [];
+  if (config.scorerAgentId) existing = (await api("GET", `/v1/convai/agents/${config.scorerAgentId}`).catch(() => null))?.conversation_config.agent.prompt.tool_ids || [];
+  const tool_ids = await syncTools(SCORER_TOOLS, existing);
+  config.scorerAgentId = await upsertAgent(config.scorerAgentId, "Silah Demo - Scorer", {
+    conversation_config: {
+      agent: {
+        first_message: "",
+        language: "en",
+        prompt: { prompt: read("System prompt").replace("[[criteria]]", criteriaText(CRITERIA)).replace("[[flags]]", flagsText), llm: LLM, temperature: 0, tool_ids },
+      },
+      conversation: { text_only: true, max_duration_seconds: 300, client_events: EVENTS },
     },
     platform_settings: TEXT_MODE_ALLOWED,
   });
@@ -209,6 +248,7 @@ async function setupCallers() {
           agent: {
             first_message: "",
             language,
+            dynamic_variables: { dynamic_variable_placeholders: { context: "You are calling the contact centre yourself." } },
             prompt: { prompt, llm: LLM, temperature: 0.5, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
           },
           tts: { voice_id, model_id: TTS_MODEL, expressive_mode: false },
@@ -225,6 +265,7 @@ async function setupCallers() {
 try {
   if (!only || only === "copilot") await setupCopilot();
   if (!only || only === "callers") await setupCallers();
+  if (!only || only === "scorer") await setupScorer();
   console.log("\nDone. config.js has the agent ids.");
 } catch (err) {
   console.error(`\nSetup stopped:\n${err.message}`);

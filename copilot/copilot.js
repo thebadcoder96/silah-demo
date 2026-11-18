@@ -32,6 +32,17 @@ let scenario = SCENARIOS[params.get("call")] || SCENARIO_LIST[0];
 let language = params.get("lang") === "en" ? "en" : "ar";
 const fresh = () => ({ lines: [], startedAt: 0, endedAt: 0, identity: "none", tab: null, spot: null, queuedView: null, fields: {}, checks: {}, wrap: null, wrapLate: false, saved: null, english: false, conversationId: "" });
 let st = fresh();
+
+// A call handed over by the campaign desk's AI agent arrives as ?handover=<reference>.
+let handover = null;
+const OWN_CALL = "You are calling the contact centre yourself.";
+const TRANSFERRED = "A moment ago the centre's automated assistant phoned you with a reminder. You asked to speak to a person and have just been put through. The agent may already know why, so do not be surprised if they do.";
+if (params.get("handover")) {
+  fetch("/api/queue", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j) => { handover = j.calls?.find((c) => c.id === params.get("handover")) || null; drawLobby(); })
+    .catch(() => {});
+}
 let phase = "lobby";
 const orb = createOrb($("#orb"));
 
@@ -72,6 +83,8 @@ function drawLobby() {
     }),
   );
   document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.lang === language)));
+  $("#handover").hidden = !handover;
+  if (handover) $("#handover").replaceChildren(el("b", { textContent: `Waiting for you: ${handover.customer}, handed over by the AI agent (${handover.id})` }), el("p", { textContent: handover.summary }));
   const ready = Boolean(agentIdFor() && config.copilotAgentId);
   $("#take").disabled = !ready;
   $("#lobby-note").textContent = !ready ? "This call is not set up yet." : TEXT_MODE ? "Typing mode: you type what the agent says, and the customer answers in text." : "Uses your microphone. The customer speaks first only after you greet them.";
@@ -132,6 +145,8 @@ $("#take").addEventListener("click", () => {
   $("#kb").replaceChildren(el("p", { className: "muted", textContent: "The matching card appears here." }));
   $("#nudge").hidden = true;
   $("#wrap").hidden = true;
+  $("#ho").hidden = !handover;
+  $("#ho-text").textContent = handover?.summary || "";
   $("#english").setAttribute("aria-pressed", "false");
   drawChecks();
   drawSystem();
@@ -161,7 +176,7 @@ $("#answer").addEventListener("click", async () => {
   $("#call-title").textContent = "Customer";
   note("Call started");
   startBrain();
-  const ok = await call.start({ agentId: agentIdFor(), textOnly: TEXT_MODE });
+  const ok = await call.start({ agentId: agentIdFor(), textOnly: TEXT_MODE, dynamicVariables: { context: handover ? TRANSFERRED : OWN_CALL } });
   if (!ok) return backToLobby();
   st.conversationId = call.id();
   if (TEXT_MODE) $("#call-sub").textContent = "Typing mode";
@@ -253,6 +268,7 @@ async function startBrain() {
     textOnly: true,
     dynamicVariables: { client: scenario.client, language: language === "ar" ? "Bahraini Arabic (the agent may mix in English)" : "English", pack: packFor(scenario) },
   });
+  if (handover) pending.unshift(`[NOTE] This call was handed over by the centre's AI agent after an outbound reminder call. Its summary: ${handover.summary}`);
   pump();
 }
 
@@ -546,6 +562,7 @@ async function saveCall(w) {
     flags: w.flags,
     transcript: st.lines.map(({ who, text, en }) => ({ who, text, en })),
     conversationId: st.conversationId,
+    handoverFrom: handover?.id,
   });
   let scored = false;
   if (w.scorecard.length) {

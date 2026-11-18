@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaign desk | MM Intelligence demo</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500&display=swap">
+  <style>
+    :root {
+      --bg: #fafafa; --card: #ffffff; --raised: #f4f4f5;
+      --text: #171717; --text-2: #525252; --muted: #737373;
+      --line: rgba(23, 23, 23, .08); --line-strong: rgba(23, 23, 23, .14);
+      --ai: #6335ed; --ai-soft: #f5f3ff; --ok: #15803d; --info: #2563eb; --warn: #a16207; --bad: #dc2626;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.5 Geist, "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 52px; padding: 6px 24px; border-bottom: 1px solid var(--line); background: var(--card); }
+    .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 500; white-space: nowrap; }
+    .brand span { color: var(--muted); font-weight: 400; }
+    .bar nav { display: flex; gap: 4px; margin-left: auto; }
+    .bar nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: 14px; white-space: nowrap; }
+    .bar nav a:hover { background: var(--raised); color: var(--text); }
+    .notice { margin: 0; padding: 6px 24px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--card); }
+
+    main { max-width: 1440px; margin: 0 auto; padding: 28px 24px 64px; }
+    .head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; margin-bottom: 20px; }
+    .head h1 { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 500; letter-spacing: -0.01em; }
+    .head p { margin: 4px 0 10px; color: var(--text-2); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: var(--raised); color: var(--text-2); white-space: nowrap; }
+    .chip.sim { background: var(--ai-soft); color: var(--ai); }
+    .chip.warn { background: #fefce8; color: var(--warn); border: 1px solid rgba(161, 98, 7, .2); }
+    .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .primary { height: 40px; padding: 0 20px; border-radius: 10px; border: 0; background: var(--text); color: #fff; font-weight: 500; white-space: nowrap; }
+    .primary:disabled { opacity: .5; cursor: default; }
+    .ghost { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card); white-space: nowrap; }
+    .ghost:disabled { color: var(--muted); cursor: default; }
+
+    .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; }
+    .stat span { display: block; font-size: 13px; color: var(--muted); }
+    .stat b { display: block; margin-top: 4px; font: 500 26px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .progress { height: 4px; margin: 12px 0 16px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+    .progress i { display: block; height: 100%; width: 0; background: var(--ai); transition: width .4s var(--ease); }
+
+    .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .box { background: var(--card); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th { text-align: left; font-size: 13px; font-weight: 400; color: var(--muted); padding: 12px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr { cursor: pointer; transition: background-color .15s var(--ease); }
+    tbody tr:hover { background: var(--bg); }
+    tbody tr.sel { background: var(--raised); }
+    .sub { display: block; color: var(--muted); font-size: 13px; }
+    .state { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
+    .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+    .state.dialing::before, .state.live::before { background: var(--ai); animation: blink 1s ease-in-out infinite; }
+    .state.answered::before { background: var(--ok); } .state.voicemail::before { background: var(--info); }
+    .state.busy::before, .state.no_answer::before { background: #eab308; } .state.failed::before { background: var(--bad); }
+    @keyframes blink { 50% { opacity: .25; } }
+    .ref { font: 500 13px var(--mono); }
+    .ref.none { color: var(--muted); font-weight: 400; }
+
+    .detail { padding: 20px 24px 24px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+    .detail h2 { margin: 0; font-size: 18px; font-weight: 500; }
+    .detail .meta { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+    .detail h3 { display: flex; align-items: center; margin: 20px 0 10px; padding-top: 16px; border-top: 1px dashed var(--line-strong); font-size: 13px; font-weight: 500; color: var(--muted); }
+    .toggle { margin-left: auto; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text-2); font-size: 13px; }
+    .toggle[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
+    .turns { display: flex; flex-direction: column; gap: 8px; }
+    .turn { max-width: 88%; padding: 8px 12px; border-radius: 12px; background: var(--raised); font-size: 14px; animation: rise .3s var(--ease); }
+    .turn.agent { align-self: flex-end; background: var(--ai-soft); }
+    .turn small { display: block; font-size: 12px; color: var(--muted); }
+    .turn p { margin: 0; unicode-bidi: plaintext; text-align: start; }
+    .turn .en { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
+    @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+    .handover { margin-top: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(99, 53, 237, .28); background: var(--ai-soft); }
+    .handover b { display: block; font-weight: 500; }
+    .handover p { margin: 4px 0 10px; font-size: 14px; color: var(--text-2); }
+    .handover a { display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 9px; background: var(--ai); color: #fff; text-decoration: none; font-weight: 500; font-size: 14px; }
+    .text { margin: 0; font-size: 14px; }
+    .empty { color: var(--muted); font-size: 14px; margin: 0; }
+
+    @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
+    @media (max-width: 640px) { .bar, .notice { padding-inline: 16px; } .brand span { display: none; } main { padding: 20px 16px 48px; } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions { margin-left: 0; } }
+    @media (prefers-reduced-motion: reduce) { .turn, .state::before { animation: none !important; } }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">Campaign desk <span>AI in front of the agent</span></div>
+    <nav>
+      <a href="../">All demos</a>
+      <a href="../quality/" target="silah-quality">Quality desk</a>
+    </nav>
+  </header>
+  <p class="notice">A demonstration by MM Intelligence. This run is simulated: nobody is dialled, and every person and number is made up.</p>
+  <main>
+    <div class="head">
+      <div>
+        <h1 id="c-name"></h1>
+        <p id="c-goal"></p>
+        <div id="c-rules" class="chips"></div>
+      </div>
+      <div class="actions">
+        <button id="callme" class="ghost" disabled title="Not connected yet">Call my phone</button>
+        <button id="start" class="primary">Start simulated run</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Dialled</span><b id="n-dialled">0</b></div>
+      <div class="stat"><span>Reached</span><b id="n-reached">0</b></div>
+      <div class="stat"><span>Confirmed</span><b id="n-confirmed">0</b></div>
+      <div class="stat"><span>Handed to a person</span><b id="n-person">0</b></div>
+      <div class="stat"><span>Opted out</span><b id="n-optout">0</b></div>
+      <div class="stat"><span>To retry</span><b id="n-retry">0</b></div>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="grid">
+      <div class="box scroll">
+        <table>
+          <thead><tr><th>Lead</th><th>Appointment</th><th>Call</th><th>Result</th><th>Ref</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="box detail" id="detail"></div>
+    </div>
+  </main>
+  <script type="module">
+    import { CAMPAIGN, LEADS } from "../data/campaign.js";
+    import { FLAGS } from "../lib/scorecard.js";
+
+    const $ = (s) => document.querySelector(s);
+    const el = (tag, props = {}, kids = []) => {
+      const n = Object.assign(document.createElement(tag), props);
+      for (const k of [].concat(kids)) if (k != null) n.append(k);
+      return n;
+    };
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const OUTCOME = { answered: "Answered", voicemail: "Voicemail", busy: "Busy", no_answer: "No answer", failed: "Failed" };
+    const LINES_AT_ONCE = 3; // calls in progress at the same time
+    const PACE = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.35 : 1;
+
+    $("#c-name").textContent = CAMPAIGN.name;
+    $("#c-goal").textContent = `${CAMPAIGN.client} · ${CAMPAIGN.goal}`;
+    $("#c-rules").replaceChildren(el("span", { className: "chip sim", textContent: "Simulated" }), ...CAMPAIGN.rules.map((r) => el("span", { className: "chip", textContent: r })));
+
+    // One row per lead. state: queued, dialing, live, done.
+    let rows = [], selected = 0, pinned = false, english = false, running = false;
+    const reset = () => { rows = LEADS.map((lead) => ({ lead, state: "queued", shown: 0, ref: null, saved: false })); selected = 0; pinned = false; };
+    reset();
+
+    function drawStats() {
+      const done = rows.filter((r) => r.state === "done");
+      const is = (re) => done.filter((r) => re.test(r.lead.result)).length;
+      $("#n-dialled").textContent = `${rows.filter((r) => r.state !== "queued").length}/${rows.length}`;
+      $("#n-reached").textContent = done.filter((r) => r.lead.outcome === "answered").length;
+      $("#n-confirmed").textContent = is(/^Confirmed/);
+      $("#n-person").textContent = is(/^Handed|^Callback/);
+      $("#n-optout").textContent = is(/Opted out/);
+      $("#n-retry").textContent = is(/Retry/);
+      $("#bar").style.width = `${(100 * done.length) / rows.length}%`;
+    }
+
+    function drawRows() {
+      $("#rows").replaceChildren(...rows.map((r, i) => {
+        const l = r.lead;
+        const label = r.state === "queued" ? "Waiting" : r.state === "dialing" ? "Dialling…" : r.state === "live" ? "On the call" : OUTCOME[l.outcome];
+        const tr = el("tr", { className: i === selected ? "sel" : "" }, [
+          el("td", {}, [l.name, el("span", { className: "sub", textContent: `${l.phone} · ${l.language === "ar" ? "Arabic" : "English"}` })]),
+          el("td", { textContent: l.appointment }),
+          el("td", {}, el("span", { className: `state ${r.state === "done" ? l.outcome : r.state}`, textContent: label })),
+          el("td", { textContent: r.state === "done" ? l.result : "" }),
+          el("td", {}, el("span", { className: `ref ${r.ref ? "" : "none"}`, textContent: r.ref || (r.state === "done" ? (r.saved === null ? "Not saved" : "Saving…") : "") })),
+        ]);
+        tr.addEventListener("click", () => { selected = i; pinned = true; draw(); });
+        return tr;
+      }));
+    }
+
+    function drawDetail() {
+      const r = rows[selected];
+      const l = r.lead;
+      const lines = l.transcript.slice(0, r.state === "done" ? l.transcript.length : r.shown);
+      const toggle = el("button", { className: "toggle", textContent: "English", ariaPressed: String(english), hidden: l.language !== "ar" });
+      toggle.addEventListener("click", () => { english = !english; drawDetail(); });
+      const status = r.state === "queued" ? "Waiting to be called" : r.state === "dialing" ? "Dialling…" : r.state === "live" ? (l.outcome === "voicemail" ? "Leaving a message" : "On the call with the AI agent") : `${OUTCOME[l.outcome]} · ${l.result}`;
+      $("#detail").replaceChildren(...[
+        el("h2", { textContent: l.name }),
+        el("p", { className: "meta", textContent: `${l.phone} · Appointment ${l.appointment} · ${status}` }),
+        r.state === "done" && l.flags?.length ? el("div", { className: "chips", style: "margin-top:10px" }, l.flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] }))) : null,
+        r.state === "done" && l.handover && r.ref ? el("div", { className: "handover" }, [
+          el("b", { textContent: "Waiting for a person" }),
+          el("p", { textContent: "The AI agent handed this call over with its summary, so the customer does not repeat herself." }),
+          el("a", { href: `../copilot/?call=${l.handover}&lang=${l.language}&handover=${r.ref}`, textContent: "Take it in the agent copilot →" }),
+        ]) : null,
+        r.state === "done" ? el("h3", { textContent: "Summary" }) : null,
+        r.state === "done" ? el("p", { className: "text", textContent: l.summary }) : null,
+        el("h3", {}, ["Transcript", toggle]),
+        lines.length ? el("div", { className: "turns" }, lines.map((x) => el("div", { className: `turn ${x.who}` }, [
+          el("small", { textContent: x.who === "agent" ? "AI agent" : l.name }),
+          el("p", { textContent: x.text }),
+          english && x.en ? el("p", { className: "en", textContent: x.en }) : null,
+        ]))) : el("p", { className: "empty", textContent: r.state === "done" ? "No conversation." : "The call appears here as it happens." }),
+      ].filter(Boolean));
+      $("#detail").scrollTop = r.state === "live" ? $("#detail").scrollHeight : 0;
+    }
+
+    const draw = () => { drawStats(); drawRows(); drawDetail(); };
+
+    /** Save a finished call to the queue, so the quality desk scores it like any other. */
+    async function save(r) {
+      const l = r.lead;
+      try {
+        const res = await fetch("/api/queue", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ source: "Campaign", simulated: true, handledBy: "AI", client: CAMPAIGN.client, scenario: CAMPAIGN.name, customer: l.name, language: l.language, outcome: l.outcome, disposition: l.result, summary: l.summary, durationSecs: l.secs, flags: l.flags || [], transcript: l.transcript }),
+        });
+        const out = await res.json();
+        if (!out.ok) throw new Error(out.reason || out.error);
+        r.ref = out.call.id;
+        r.saved = true;
+      } catch (err) {
+        console.error(err);
+        r.saved = null; // shown as "Not saved"; never invent a reference
+      }
+    }
+
+    async function dial(i) {
+      const r = rows[i];
+      const follow = () => { if (!pinned) selected = i; };
+      r.state = "dialing";
+      draw();
+      await sleep((1400 + Math.random() * 1800) * PACE);
+      if (r.lead.transcript.length) {
+        r.state = "live";
+        follow();
+        draw();
+        for (const line of r.lead.transcript) {
+          await sleep(Math.min(3400, 600 + line.text.length * 30) * PACE);
+          r.shown++;
+          if (selected === i) drawDetail();
+        }
+        await sleep(700 * PACE);
+      } else {
+        await sleep(2200 * PACE); // ringing out
+      }
+      r.state = "done";
+      draw();
+      await save(r);
+      draw();
+    }
+
+    $("#start").addEventListener("click", async () => {
+      if (running) return;
+      running = true;
+      reset();
+      $("#start").disabled = true;
+      $("#start").textContent = "Running…";
+      draw();
+      let next = 0;
+      const worker = async () => { while (next < rows.length) await dial(next++); };
+      await Promise.all(Array.from({ length: LINES_AT_ONCE }, worker));
+      running = false;
+      $("#start").disabled = false;
+      $("#start").textContent = "Run again";
+    });
+
+    draw();
+  </script>
+</body>
+</html>
