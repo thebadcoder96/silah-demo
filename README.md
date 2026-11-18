@@ -86,6 +86,13 @@ A score is saved beside the call with `POST /api/queue?score=<reference>`, so a 
 
 Voices: the centre's AI agents speak with Nasser AlJubaily in Arabic and the Montgomery 311 line's voice in English; the male customer in Arabic is Salim. They are set at the top of `scripts/setup-agents.mjs` and `scripts/make-campaign-audio.mjs`.
 
+## Real phone calls
+
+`api/phone.js` is the one function behind both phone features. It needs `ELEVENLABS_API_KEY` in the Vercel project, and a Twilio number imported into ElevenLabs with a label that contains "Silah". After importing the number, run `node scripts/setup-agents.mjs --only phone`: it points the number at the triage phone agent and writes the number into `config.js` and `lib/agents.js`. Commit both.
+
+- **Triage by phone.** The number answers with "Silah Demo - Triage line (phone)". Its two tools are webhooks to `/api/phone?tool=...`, which keep a small live state (`lib/store.js`, `setLive`/`getLive`), so the triage page fills in while the caller is talking. The transcript arrives when they hang up, and the call is saved to the queue once. Transfers to a real phone are not wired yet: the agent says it is putting the caller through and ends the call.
+- **Campaign call.** "Call my phone" on the campaign desk posts a number to `/api/phone`; the campaign agent (`agents/campaign.md`) rings it from the same number. The page shows the status and transcript, and the finished call is saved to the queue. Anyone who can open the page can place a call, so take the page down, or remove the key, when the demo is over.
+
 ## Call audio and voice testing
 
 - **Campaign audio.** The campaign desk's calls are simulated, so their audio is recorded ahead of time: `node scripts/make-campaign-audio.mjs` reads each transcript line with an ElevenLabs voice into `campaign/audio/<lead>/<line>.mp3`. These files are committed. Run it again after changing `data/campaign.js`. The campaign desk and the quality desk play them with `lib/player.js`. Sound is off until someone presses Sound or Listen.

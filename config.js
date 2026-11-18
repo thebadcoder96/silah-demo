@@ -15,5 +15,14 @@ window.SILAH_CONFIG = {
   "triageAgentIds": {
     "ar": "agent_2601m7rbbc6ze8k97sdkjt7gbwff",
     "en": "agent_5801m7rbbds9ej89pz05ngjfwgm3"
+  },
+  "triagePhoneToolIds": {
+    "show_triage": "tool_4501m7rckhzefjhrhv8t0etgg2gn",
+    "transfer_call": "tool_6701m7rckj1kepk9md6jjzp36x5w"
+  },
+  "triagePhoneAgentId": "agent_6601m7rckj9xe0g9wfkmnwj5fat4",
+  "campaignAgentIds": {
+    "ar": "agent_0501m7rckkppe9v9c15cg7bzw4cm",
+    "en": "agent_0101m7rckn8dfdbre6mbwmdr2h38"
   }
 };

@@ -7,6 +7,7 @@
 //   node scripts/setup-agents.mjs --only callers  just the AI callers
 //   node scripts/setup-agents.mjs --only scorer   just the quality desk's scorer
 //   node scripts/setup-agents.mjs --only triage   just the triage line
+//   node scripts/setup-agents.mjs --only phone    the agents that work on real phone calls, and the phone number
 //
 // Needs ELEVENLABS_API_KEY in .env. Voices are set explicitly and expressive
 // mode is off on every agent.
@@ -61,7 +62,11 @@ const CONFIG_HEAD = `// Demo settings. Agent ids are public by design (the same 
 window.SILAH_CONFIG = `;
 const config = JSON.parse((await readFile(`${root}config.js`, "utf8")).match(/window\.SILAH_CONFIG\s*=\s*(\{[\s\S]*\});?\s*$/)?.[1] || "{}");
 config.callerAgentIds ||= {};
-const saveConfig = () => writeFile(`${root}config.js`, `${CONFIG_HEAD}${JSON.stringify(config, null, 2)};\n`);
+// The same ids again as a module, for the server functions (api/).
+const saveConfig = async () => {
+  await writeFile(`${root}config.js`, `${CONFIG_HEAD}${JSON.stringify(config, null, 2)};\n`);
+  await writeFile(`${root}lib/agents.js`, `// Written by scripts/setup-agents.mjs: the same ids as config.js, for the server functions.\nexport default ${JSON.stringify(config, null, 2)};\n`);
+};
 
 // ---------- prompts ----------
 
@@ -325,7 +330,77 @@ async function setupTriage() {
   }
 }
 
+// ---------- real phone calls ----------
+// A phone call has no browser, so the triage agent's two tools become webhooks
+// that call this site (api/phone.js). The campaign agent needs no tools.
+
+const SITE = (args.includes("--site") ? args[args.indexOf("--site") + 1] : "https://silah-demo.vercel.app").replace(/\/$/, "");
+const END_CALL = { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } };
+
+async function setupPhone() {
+  console.log("Phone agents");
+  for (const v of Object.values(AGENT_VOICE)) await ensureVoice(v);
+
+  // the triage agent that answers the number: starts in Arabic, follows the caller into English
+  const triage = await doc("triage.md");
+  config.triagePhoneToolIds ||= {};
+  for (const [name, def] of Object.entries(TRIAGE_TOOLS)) {
+    const tool_config = { type: "webhook", name, description: def.description, response_timeout_secs: 20, api_schema: { url: `${SITE}/api/phone?tool=${name}`, method: "POST", request_body_schema: def.parameters } };
+    const id = config.triagePhoneToolIds[name];
+    if (id) await api("PATCH", `/v1/convai/tools/${id}`, { tool_config });
+    else config.triagePhoneToolIds[name] = (await api("POST", "/v1/convai/tools", { tool_config })).id;
+  }
+  const bothLanguages = "Start in Bahraini Arabic, the everyday spoken dialect, not formal Arabic. If the caller speaks English, switch to plain English and stay in it. Say times and numbers in words.";
+  config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)", {
+    conversation_config: {
+      agent: {
+        first_message: triage("First message: Arabic"),
+        language: "ar",
+        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: END_CALL },
+      },
+      tts: { voice_id: AGENT_VOICE.ar, model_id: TTS_MODEL, expressive_mode: false },
+      asr: { keywords: ["Khidmati", "CPR"] },
+      conversation: { max_duration_seconds: 600 },
+    },
+  });
+  await saveConfig();
+
+  // the campaign agent that rings a phone, one per language
+  const campaign = await doc("campaign.md");
+  config.campaignAgentIds ||= {};
+  for (const language of ["ar", "en"]) {
+    const name = language === "ar" ? "Arabic" : "English";
+    config.campaignAgentIds[language] = await upsertAgent(config.campaignAgentIds[language], `Silah Demo - Campaign call (${language})`, {
+      conversation_config: {
+        agent: {
+          first_message: campaign(`First message: ${name}`),
+          language,
+          dynamic_variables: { dynamic_variable_placeholders: { name: "there", appointment: "Sunday at ten in the morning", centre: "the Isa Town centre" } },
+          prompt: { prompt: campaign("System prompt").replace("[[language_rules]]", campaign(`Language rules: ${name}`)), llm: LLM, temperature: 0.3, built_in_tools: END_CALL },
+        },
+        tts: { voice_id: AGENT_VOICE[language], model_id: TTS_MODEL, expressive_mode: false },
+        asr: { keywords: ["Khidmati", "CPR"] },
+        conversation: { max_duration_seconds: 300 },
+      },
+    });
+    await saveConfig();
+  }
+
+  // the phone number: the one on the account whose label mentions Silah
+  const numbers = await api("GET", "/v1/convai/phone-numbers");
+  const mine = (Array.isArray(numbers) ? numbers : numbers.phone_numbers || []).find((n) => /silah/i.test(n.label || ""));
+  if (!mine) {
+    console.log('\n  No phone number yet. Import one in ElevenLabs (Phone Numbers -> Import number -> Twilio) with a label that contains "Silah", then run this again.');
+  } else {
+    await api("PATCH", `/v1/convai/phone-numbers/${mine.phone_number_id}`, { agent_id: config.triagePhoneAgentId });
+    config.phone = { id: mine.phone_number_id, number: mine.phone_number };
+    console.log(`  ${mine.phone_number} answers with the triage agent, and places the campaign calls`);
+  }
+  await saveConfig();
+}
+
 try {
+  if (only === "phone") await setupPhone();
   if (!only || only === "triage") await setupTriage();
   if (!only || only === "copilot") await setupCopilot();
   if (!only || only === "callers") await setupCallers();

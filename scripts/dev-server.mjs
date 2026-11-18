@@ -22,6 +22,7 @@ const port = Number(process.env.PORT || 5174);
 // Add each new function here: path -> module.
 const API = {
   "/api/queue": (await import("../api/queue.js")).default,
+  "/api/phone": (await import("../api/phone.js")).default,
 };
 const MIME = {
   ".html": "text/html; charset=utf-8",

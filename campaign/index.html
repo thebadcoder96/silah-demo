@@ -81,6 +81,15 @@
 .tools { margin-left: auto; display: flex; gap: 6px; }
     .tools .toggle { margin-left: 0; }
     .turn.playing { box-shadow: 0 0 0 2px var(--ai); }
+    .livecall { margin-bottom: 16px; padding: 18px 20px; border-color: var(--ai); }
+    .livecall h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .livecall h2 span { font: 12px var(--mono); color: var(--ai); }
+    .livecall form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .livecall input, .livecall select { height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; font: inherit; background: var(--card); min-width: 0; }
+    .livecall input { flex: 1 1 180px; }
+    .livecall .sub { margin: 0; color: var(--text-2); font-size: 14px; }
+    .livecall .turns { margin-top: 12px; max-height: 320px; overflow-y: auto; }
+    .livecall a { color: var(--ai); }
     .handover { margin-top: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(99, 53, 237, .28); background: var(--ai-soft); }
     .handover b { display: block; font-weight: 500; }
     .handover p { margin: 4px 0 10px; font-size: 14px; color: var(--text-2); }
@@ -97,7 +106,7 @@
 <body>
   <header class="demo-bar">
     <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
-    <span><b>Campaign desk.</b> A demonstration by MM Intelligence. This run is simulated: nobody is dialled, and every person and number is made up.</span>
+    <span><b>Campaign desk.</b> A demonstration by MM Intelligence. The run is simulated: nobody on the list is dialled, and every person and number is made up. "Call my phone" places one real call.</span>
     <a href="../">← All demos</a>
     <a href="../quality/" target="silah-quality">Quality desk</a>
   </header>
@@ -124,6 +133,17 @@
       <div class="stat"><span>To retry</span><b id="n-retry">0</b></div>
     </div>
     <div class="progress"><i id="bar"></i></div>
+    <section id="livecall" class="box livecall" hidden>
+      <h2>A real call <span id="lc-state"></span></h2>
+      <p id="lc-sub" class="sub">The AI agent rings this number and gives the same CPR card renewal reminder, live. Use your own phone.</p>
+      <form id="lc-form">
+        <input id="lc-to" inputmode="tel" placeholder="+973 3300 1122" aria-label="Phone number, in international form" required>
+        <input id="lc-name" placeholder="Name to ask for" aria-label="Name to ask for">
+        <select id="lc-lang" aria-label="Language"><option value="ar">العربية</option><option value="en">English</option></select>
+        <button class="primary" id="lc-go">Call now</button>
+      </form>
+      <div id="lc-turns" class="turns"></div>
+    </section>
     <div class="grid">
       <div class="box scroll">
         <table>
@@ -148,6 +168,45 @@
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const OUTCOME = { answered: "Answered", voicemail: "Voicemail", busy: "Busy", no_answer: "No answer", failed: "Failed" };
     const LINES_AT_ONCE = 3; // calls in progress at the same time
+
+    // ---------- a real call ----------
+    // "Call my phone" is live once a phone number is connected (api/phone.js says so).
+    fetch("/api/phone?line=triage").then((r) => r.json()).then((d) => {
+      if (!d.number) return;
+      $("#callme").disabled = false;
+      $("#callme").title = `Calls from ${d.number}`;
+    }).catch(() => {});
+    $("#callme").addEventListener("click", () => { $("#livecall").hidden = !$("#livecall").hidden; if (!$("#livecall").hidden) $("#lc-to").focus(); });
+    const STATUS = { initiated: "Ringing…", "in-progress": "On the call", processing: "Call ended, writing it up…", done: "Call ended", failed: "The call did not connect" };
+    $("#lc-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("#lc-go").disabled = true;
+      $("#lc-turns").replaceChildren();
+      $("#lc-state").textContent = "Dialling…";
+      try {
+        const made = await (await fetch("/api/phone", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: $("#lc-to").value, name: $("#lc-name").value, language: $("#lc-lang").value }) })).json();
+        if (!made.ok) throw new Error(made.reason || made.error || "The call could not be placed.");
+        $("#lc-sub").textContent = "The transcript fills in below; some of it may only arrive when the call ends.";
+        let drawn = 0;
+        for (;;) {
+          await sleep(2000);
+          const { call } = await (await fetch(`/api/phone?id=${made.id}`)).json();
+          if (!call) continue;
+          $("#lc-state").textContent = STATUS[call.status] || call.status;
+          for (const m of call.messages.slice(drawn)) $("#lc-turns").append(el("div", { className: `turn ${m.who}` }, [el("small", { textContent: m.who === "agent" ? "AI agent" : $("#lc-name").value || "You" }), el("p", { textContent: m.text })]));
+          drawn = call.messages.length;
+          $("#lc-turns").scrollTop = $("#lc-turns").scrollHeight;
+          if (call.status === "done" || call.status === "failed") {
+            $("#lc-sub").replaceChildren(call.summary || "The call has ended.", call.ref ? " " : "", call.ref ? el("a", { href: "../quality/", target: "silah-quality", textContent: `Saved as ${call.ref}. Open the quality desk →` }) : "");
+            break;
+          }
+        }
+      } catch (err) {
+        $("#lc-state").textContent = "";
+        $("#lc-sub").textContent = err.message || "The call could not be placed.";
+      }
+      $("#lc-go").disabled = false;
+    });
     const PACE = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.35 : 1;
 
     $("#c-name").textContent = CAMPAIGN.name;

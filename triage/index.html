@@ -127,6 +127,7 @@
           <input id="typed-input" placeholder="Type what the caller says" autocomplete="off" aria-label="Type what the caller says">
           <button aria-label="Send">➤</button>
         </form>
+        <p id="number" class="fine" hidden></p>
         <p id="hint" class="fine">You are the caller. Uses your microphone. Try: "what time do you open on Saturday?", "I need to move my appointment", or "I want to complain".</p>
       </section>
 
@@ -320,6 +321,46 @@
         say("note", "The call could not be saved.");
       }
     }
+    // Calls to the real phone number. The board fills in while the caller is
+    // still talking (the agent's tools report to the server); the transcript
+    // arrives when they hang up. Calls from before the page was opened are left alone.
+    const opened = Date.now();
+    let shown = "";
+    async function watchLine() {
+      let wait = 4000;
+      try {
+        if (!document.hidden && !voice.active()) {
+          const data = await (await fetch("/api/phone?line=triage")).json();
+          if (data.number) {
+            $("#number").hidden = false;
+            $("#number").textContent = `Or call ${data.number} from any phone. The call shows up here.`;
+          }
+          const b = data.board;
+          const c = data.call;
+          if ((b && b.at > opened - 60000) || (c && (c.live || c.started * 1000 > opened - 60000))) {
+            const key = [b?.at, c?.id, c?.messages.length, c?.live, c?.ref].join("|");
+            if (key !== shown) {
+              shown = key;
+              st = { ...fresh(), saved: true, need: b?.need || "", desk: b?.desk || "", urgency: b?.urgency || "", caller: b?.caller || "", summary: b?.summary || "", transferred: b?.transferred || "", connected: Boolean(b?.transferred) };
+              drawBoard();
+              $("#log").replaceChildren();
+              say("note", `Phone call to ${data.number || "the main line"}`);
+              if (!c?.messages.length) say("note", "Call in progress. The transcript appears when the caller hangs up.");
+              for (const m of c?.messages || []) say(m.who === "customer" ? "user" : "agent", m.text);
+              drawHandover(c?.ref);
+              if (c?.ref && !st.transferred) say("note", `Saved as ${c.ref}. It is on the quality desk.`);
+              $("#state").textContent = c && !c.live ? "Phone call ended" : "On a phone call";
+            }
+            if (!c || c.live) wait = 1500;
+          }
+        }
+      } catch {
+        // try again on the next round
+      }
+      setTimeout(watchLine, wait);
+    }
+    watchLine();
+
     addEventListener("pagehide", () => {
       if (st && !st.saved && st.lines.length >= 2) navigator.sendBeacon("/api/queue", new Blob([JSON.stringify(record())], { type: "application/json" }));
     });
