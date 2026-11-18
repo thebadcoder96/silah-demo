@@ -20,7 +20,7 @@ How to judge:
 - When the customer asks not to be called again, or the wrong person answers, the right thing is a short, polite exit: stopping the calls or giving nothing away is the resolution, and a courteous goodbye is a proper closing. Do not expect an "anything else" question there.
 - When the call is handed to a person, telling the customer they are being put through, and that a summary goes with them, is both the recap and the closing. Handing over when the customer asks for a person is the resolution.
 - A voicemail message has no customer. Judge greeting and disclosure, and give the rest `unknown`.
-- As evidence, quote the AGENT's line that shows it, exactly as written in the transcript and in its original language. If the step is missing, say in a few English words what was missing.
+- As evidence, quote the AGENT's line that shows it, exactly as written in the transcript and in its original language, without the `AGENT:` label. If the step is missing, say in a few English words what was missing.
 - Be fair and strict. Do not reward politeness for a step that was skipped.
 
 Flags, only when the transcript clearly shows it:

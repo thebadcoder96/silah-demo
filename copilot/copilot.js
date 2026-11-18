@@ -364,6 +364,7 @@ function confirmIdentity() {
   st.identity = "confirmed";
   st.tab = st.queuedView?.tab || scenario.tabs[0].id;
   st.spot = st.queuedView?.row || null;
+  $("#nudge").hidden = true; // the usual warning at this point is "confirm identity first"
   drawSystem();
   feed("[NOTE] The agent pressed Confirm identity. The customer's record is now open on the agent's screen.");
 }
