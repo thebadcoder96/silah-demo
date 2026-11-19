@@ -46,8 +46,15 @@ const VOICES = {
 // account, in both languages, so Arabic words inside English are said the
 // Arabic way. (Before: Nasser AlJubaily cFUFIbKkO2iZFwS8cRnY in Arabic, and
 // Paul J3Ei0Lj6fAobhIqY5ySH, the Montgomery 311 voice, in English.)
+// Rasya, the Bahraini woman's voice, answers the triage line (in the browser and
+// on the phone number); Salim makes the campaign calls. Until Rasya is on the
+// account this key belongs to, Salim answers the triage line too.
 const SALIM = "Dh7ijKbaKhas3blqwrt3";
-const AGENT_VOICE = { ar: SALIM, en: SALIM };
+const RASYA = "zTndhLl1TpzeIUhS5giP";
+const onAccount = async (id) => (await fetch(`https://api.elevenlabs.io/v1/voices/${id}`, { headers: { "xi-api-key": key } })).ok;
+const TRIAGE_VOICE = (await onAccount(RASYA)) ? RASYA : SALIM;
+const CAMPAIGN_VOICE = SALIM;
+if (TRIAGE_VOICE !== RASYA) console.log("Rasya is not on this ElevenLabs account, so Salim answers the triage line for now.\n");
 // Two scenarios have female callers; give the second one a different voice.
 const voiceFor = (scenario, language) => VOICES[language][scenario.id === "government" ? "female2" : scenario.caller.gender];
 
@@ -337,8 +344,7 @@ async function setupTriage() {
   const tool_ids = await syncTools(TRIAGE_TOOLS, existing);
   for (const language of ["ar", "en"]) {
     const name = language === "ar" ? "Arabic" : "English";
-    const voice_id = AGENT_VOICE[language];
-    await ensureVoice(voice_id);
+    const voice_id = TRIAGE_VOICE;
     const id = config.triageAgentIds[language];
     config.triageAgentIds[language] = await upsertAgent(id, `Silah Demo - Triage line (${language})`, {
       conversation_config: {
@@ -366,7 +372,6 @@ const END_CALL = { end_call: { type: "system", name: "end_call", description: ""
 
 async function setupPhone() {
   console.log("Phone agents");
-  for (const v of Object.values(AGENT_VOICE)) await ensureVoice(v);
 
   // the triage agent that answers the number: starts in Arabic, follows the caller into English
   const triage = await doc("triage.md");
@@ -398,7 +403,7 @@ async function setupPhone() {
         language: "en",
         prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, ...TRANSFER } },
       },
-      tts: { voice_id: AGENT_VOICE.ar, model_id: TTS_MODEL, expressive_mode: false },
+      tts: { voice_id: TRIAGE_VOICE, model_id: TTS_MODEL, expressive_mode: false },
       asr: { keywords: ["Khidmati", "CPR"] },
       conversation: { max_duration_seconds: 600 },
       language_presets: { ar: { overrides: { agent: { first_message: triage("First message: Arabic") } } } },
@@ -419,7 +424,7 @@ async function setupPhone() {
           dynamic_variables: { dynamic_variable_placeholders: { name: "there", appointment: "Sunday at ten in the morning", centre: "the Isa Town centre" } },
           prompt: { prompt: campaign("System prompt").replace("[[language_rules]]", spoken(campaign(`Language rules: ${name}`), language, language === "ar" ? "en" : "ar")), llm: LLM, temperature: 0.3, built_in_tools: END_CALL },
         },
-        tts: { voice_id: AGENT_VOICE[language], model_id: TTS_MODEL, expressive_mode: false },
+        tts: { voice_id: CAMPAIGN_VOICE, model_id: TTS_MODEL, expressive_mode: false },
         asr: { keywords: ["Khidmati", "CPR"] },
         conversation: { max_duration_seconds: 300 },
       },

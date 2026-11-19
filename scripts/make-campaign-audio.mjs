@@ -18,10 +18,18 @@ const key = (await readFile(`${root}.env`, "utf8")).match(/^\s*ELEVENLABS_API_KE
 const again = process.argv.includes("--all");
 
 const MODEL = "eleven_v4_turbo";
-// The AI agent is Salim in both languages, as on the live agents; customers get a voice by gender.
-const VOICES = {
-  ar: { agent: "Dh7ijKbaKhas3blqwrt3" /* Salim */, male: "cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily */, female: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
-  en: { agent: "Dh7ijKbaKhas3blqwrt3" /* Salim */, male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
+// The AI agent is Salim in both languages, as on the live campaign agent. The
+// customers take turns through a pool of voices, so a list of twelve people
+// does not sound like two.
+const AGENT = "Dh7ijKbaKhas3blqwrt3"; // Salim
+const POOL = {
+  ar: { male: ["cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily */, "TfevL8tqOhb9PBTrfU9u" /* Sahl */, "3GnbqfjaW8xI6hRTVx4Y" /* Nasser, enterprise */], female: ["albaa6OioIhKtKdCEkQw" /* Laloosh */, "oOucsh1OZElozgDVjcfe" /* Rafoush */] },
+  en: { male: ["cjVigY5qzO86Huf0OWal" /* Eric */, "iP95p4xoKVk53GoZ742B" /* Chris */, "nPczCjzI2devNBz1zQrb" /* Brian */], female: ["EXAVITQu4vr4xnSDxMaL" /* Sarah */, "cuTixVvCOWFxeH3oGE9m" /* Clara */, "cgSgspJ2msm6clMCkdW9" /* Jessica */] },
+};
+const turn = {}; // how many customers of each language and gender so far
+const customerVoice = (lead) => {
+  const pool = POOL[lead.language][lead.gender], k = lead.language + lead.gender;
+  return pool[(turn[k] = (turn[k] ?? -1) + 1) % pool.length];
 };
 
 async function speak(voice, text) {
@@ -40,12 +48,13 @@ async function speak(voice, text) {
 let made = 0;
 for (const [i, lead] of LEADS.entries()) {
   if (!lead.transcript.length) continue;
+  const customer = customerVoice(lead);
   const dir = `${root}campaign/audio/${i + 1}`;
   await mkdir(dir, { recursive: true });
   for (const [n, line] of lead.transcript.entries()) {
     const file = `${dir}/${n + 1}.mp3`;
     if (!again && (await stat(file).catch(() => null))) continue;
-    const voice = VOICES[lead.language][line.who === "agent" ? "agent" : lead.gender];
+    const voice = line.who === "agent" ? AGENT : customer;
     await writeFile(file, await speak(voice, line.text));
     made++;
     console.log(`${i + 1}/${n + 1}.mp3  ${lead.name}  ${line.who}`);
