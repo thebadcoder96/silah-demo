@@ -54,7 +54,7 @@ async function tool(name, p) {
   if (name === "transfer_call") {
     const id = deskOf(p.desk) === "self" ? "cpr" : deskOf(p.desk);
     await setLive("triage", { ...board, desk: id, transferred: id, summary: p.summary || board.need || "", caller: p.caller_name || board.caller || "" });
-    return { transferred: true, desk: TRIAGE.desks[id].name, note: "The caller is being put through. Say one short goodbye sentence, then end the call." };
+    return { transferred: true, desk: TRIAGE.desks[id].name, note: "The desk has the summary. Now do the next step in your instructions." };
   }
   return { ok: false, reason: "no such tool" };
 }

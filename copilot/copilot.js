@@ -371,6 +371,7 @@ function finish_call(p) {
     title: p.ticket_title || "",
     flags: (p.flags || []).filter((f) => f in FLAGS),
     scorecard: p.scorecard || [],
+    insight: { fcr: p.fcr, csat: p.csat, csat_reason: p.csat_reason, sentiment: p.sentiment },
   };
   drawWrap();
   return { ok: true };
@@ -618,20 +619,24 @@ function drawWrap() {
   box.hidden = false;
   const again = el("button", { className: "primary", textContent: "Take another call" });
   again.addEventListener("click", backToLobby);
-  if (!st.wrap && !st.wrapLate) return box.replaceChildren(el("h2", { textContent: "Wrap-up" }), el("p", { className: "muted", textContent: "Writing the summary…" }));
+  if (!st.wrap && !st.wrapLate) return box.replaceChildren(el("h2", { textContent: "Wrap-up · ACW" }), el("p", { className: "muted", textContent: "Writing the summary…" }));
+  st.acwSecs ??= Math.round((Date.now() - st.endedAt) / 1000);
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const talk = Math.round((st.endedAt - st.startedAt) / 1000);
   const w = st.wrap || { summary: "", disposition: "", title: "", flags: [], scorecard: [] };
   if (!st.saved && !st.saving) save(w); // nothing to press: the call goes to the quality desk as soon as it is written up
   const approved = Object.values(st.fields).filter((f) => f.status === "approved").length;
   const retry = el("button", { className: "ghost", textContent: "Try again" });
   retry.addEventListener("click", () => { st.saveFailed = false; st.saving = null; drawWrap(); });
   box.replaceChildren(...[
-    el("h2", { textContent: "Wrap-up" }),
+    el("h2", { textContent: "Wrap-up · ACW" }),
     st.saved ? el("p", { className: "ref", textContent: st.saved.id }) : null,
     el("p", { className: "fine", textContent: st.saved ? (st.saved.scored ? "Saved. The call and its scorecard are on the quality desk." : "Saved. The quality desk will score it.") : st.saveFailed ? "The call could not be saved. Nothing was sent." : "Saving to the quality desk…" }),
     w.title ? el("p", { className: "big", textContent: w.title }) : null,
     w.summary ? el("p", { className: "text", textContent: w.summary }) : st.wrap ? null : el("p", { className: "text", textContent: "The copilot did not finish the summary in time. The transcript was saved without one." }),
     el("div", { className: "chips" }, [
-      w.disposition ? el("span", { className: "chip", textContent: w.disposition }) : null,
+      w.disposition ? el("span", { className: "chip", textContent: `Disposition: ${w.disposition}` }) : null,
+      el("span", { className: "chip", textContent: `AHT ${mmss(talk + st.acwSecs)} · talk ${mmss(talk)} · ACW ${mmss(st.acwSecs)}` }),
       el("span", { className: "chip", textContent: `${approved} of ${scenario.form.fields.length} case fields approved` }),
       ...w.flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] })),
     ]),
@@ -653,6 +658,7 @@ function record(w) {
     disposition: w.disposition,
     summary: [w.title, w.summary].filter(Boolean).join(". ").replace(/\.\. /g, ". "),
     durationSecs: Math.round(((st.endedAt || Date.now()) - st.startedAt) / 1000),
+    acwSecs: st.acwSecs ?? 0, // after-call work: the time the copilot took to write the wrap-up
     flags: w.flags,
     transcript: st.lines.map(({ who, text, en }) => ({ who, text, en })),
     conversationId: st.conversationId,
@@ -671,7 +677,7 @@ function save(w) {
   st.saving = (async () => {
     try {
       const { call: saved } = await post("/api/queue", record(w));
-      const scored = w.scorecard.length ? await post(`/api/queue?score=${saved.id}`, { model: "Copilot", criteria: w.scorecard, flags: w.flags }).then(() => true, () => false) : false;
+      const scored = w.scorecard.length ? await post(`/api/queue?score=${saved.id}`, { model: "Copilot", criteria: w.scorecard, flags: w.flags, ...w.insight }).then(() => true, () => false) : false;
       st.saved = { id: saved.id, scored };
     } catch (err) {
       console.error(err);

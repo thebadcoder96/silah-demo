@@ -24,6 +24,12 @@ if (!key) {
   process.exit(1);
 }
 const args = process.argv.slice(2);
+// The phone that real transfers ring. Kept in .env so it never reaches the repository.
+const transferNumber = (await readFile(`${root}.env`, "utf8").catch(() => "")).match(/^\s*TRANSFER_NUMBER\s*=\s*"?(\+\d{8,15})/m)?.[1] || "";
+const AFTER_TRANSFER = {
+  shown: "After the tool returns, say one short goodbye sentence and end the call.",
+  dialled: "After the tool returns, call `transfer_to_number` at once: `client_message` is one short sentence telling the caller they are being connected, in the language of the call, and `agent_message` is the same English summary, for the person who picks up. Do not say goodbye and do not end the call yourself; the transfer connects them.",
+};
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : "";
 
 const LLM = "claude-haiku-5-5";
@@ -105,6 +111,14 @@ async function ensureVoice(id) {
 const str = (description) => ({ type: "string", description });
 const list = (description, properties, required) => ({ type: "array", description, items: { type: "object", description: "One entry.", properties, required } });
 
+// What is judged about the customer on every call, beside the scorecard.
+const INSIGHT = {
+  fcr: str("First-contact resolution: yes, no or unknown."),
+  csat: { type: "number", description: "Predicted CSAT: the score from 1 to 5 this customer would most likely give. 0 when there is no customer to judge." },
+  csat_reason: str("One short English sentence: what in the call the predicted CSAT is based on."),
+  sentiment: str("The customer's sentiment at the end of the call: positive, neutral or negative."),
+};
+
 const COPILOT_TOOLS = {
   update_screen: {
     description: "Update the agent's screen after new lines of the call. Call it exactly once per message, with only the parts that changed.",
@@ -132,13 +146,14 @@ const COPILOT_TOOLS = {
     description: "Write the wrap-up and the scorecard when the call has ended. Call it once, after CALL ENDED.",
     parameters: {
       type: "object",
-      required: ["summary", "disposition", "ticket_title", "scorecard"],
+      required: ["summary", "disposition", "ticket_title", "scorecard", "fcr", "csat", "csat_reason", "sentiment"],
       properties: {
         summary: str("Two or three plain sentences in English."),
         disposition: str("The outcome in a few words."),
         ticket_title: str("A short title for the case."),
         flags: { type: "array", description: "Any of: missed_identity_check, customer_upset, promised_callback, asked_for_person, do_not_call.", items: str("One flag.") },
         scorecard: list("One entry for each of: greeting, identity, resolution, recap, courtesy, closing.", { id: str("The criterion id."), result: str("pass, fail or unknown."), evidence: str("The agent's line that shows it, or what was missing.") }, ["id", "result", "evidence"]),
+        ...INSIGHT,
       },
     },
   },
@@ -149,10 +164,11 @@ const SCORER_TOOLS = {
     description: "Give the scorecard for the call. Call it exactly once.",
     parameters: {
       type: "object",
-      required: ["scorecard"],
+      required: ["scorecard", "fcr", "csat", "csat_reason", "sentiment"],
       properties: {
         scorecard: COPILOT_TOOLS.finish_call.parameters.properties.scorecard,
         flags: COPILOT_TOOLS.finish_call.parameters.properties.flags,
+        ...INSIGHT,
       },
     },
   },
@@ -318,7 +334,7 @@ async function setupTriage() {
         agent: {
           first_message: read(`First message: ${name}`),
           language,
-          prompt: { prompt: read("System prompt").replace("[[language_rules]]", read(`Language rules: ${name}`)), llm: LLM, temperature: 0.2, tool_ids, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
+          prompt: { prompt: read("System prompt").replace("[[language_rules]]", read(`Language rules: ${name}`)).replace("[[after_transfer]]", AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
         },
         tts: { voice_id, model_id: TTS_MODEL, expressive_mode: false },
         asr: { keywords: ["Khidmati", "CPR"] },
@@ -350,13 +366,23 @@ async function setupPhone() {
     if (id) await api("PATCH", `/v1/convai/tools/${id}`, { tool_config });
     else config.triagePhoneToolIds[name] = (await api("POST", "/v1/convai/tools", { tool_config })).id;
   }
+  // Every desk rings the one phone in .env, as a warm transfer: whoever picks up hears the summary first.
+  const TRANSFER = transferNumber ? {
+    transfer_to_number: {
+      type: "system",
+      name: "transfer_to_number",
+      description: "",
+      params: { system_tool_type: "transfer_to_number", transfers: [{ transfer_destination: { type: "phone", phone_number: transferNumber }, condition: "After transfer_call has returned, for either desk.", transfer_type: "conference" }] },
+    },
+  } : {};
+  console.log(transferNumber ? "  transfers ring the number in .env" : "  no TRANSFER_NUMBER in .env: the agent says it is transferring, then ends the call");
   const bothLanguages = "Start in Bahraini Arabic, the everyday spoken dialect, not formal Arabic. If the caller speaks English, switch to plain English and stay in it. Say times and numbers in words.";
   config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)", {
     conversation_config: {
       agent: {
         first_message: triage("First message: Arabic"),
         language: "ar",
-        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: END_CALL },
+        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, ...TRANSFER } },
       },
       tts: { voice_id: AGENT_VOICE.ar, model_id: TTS_MODEL, expressive_mode: false },
       asr: { keywords: ["Khidmati", "CPR"] },

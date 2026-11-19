@@ -112,7 +112,7 @@
       <div>
       <span class="eyebrow">Inbound · Triage</span>
       <h1>Triage line</h1>
-      <p>An AI agent answers the main line. It deals with the simple questions itself, works out what everyone else needs, and puts them through to the right desk with a summary, so your agent never starts from zero.</p>
+      <p>An AI agent answers the main line. It deals with the simple questions itself, works out what everyone else needs, and makes a warm transfer to the right desk with a summary, so your agent never starts from zero. Every call is answered on the first ring: ASA is zero, and nobody abandons in a queue.</p>
       </div>
       <a id="dial" class="dial" hidden><small>Call it from any phone</small><b id="dial-number"></b></a>
     </div>
@@ -257,7 +257,7 @@
       if (!st?.transferred) return $("#handover").replaceChildren();
       const desk = TRIAGE.desks[st.transferred];
       $("#handover").replaceChildren(el("div", { className: "handover" }, [
-        el("small", { textContent: `What ${desk.person} sees when the phone rings` }),
+        el("small", { textContent: `Warm transfer · what ${desk.person} hears and sees when the phone rings` }),
         el("p", { textContent: st.summary }),
         ref ? el("p", { className: "ref" }, [`Saved as ${ref}. `, el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" })]) : null,
       ]));

@@ -41,3 +41,6 @@ When you receive `CALL ENDED`, first call `update_screen` for any new lines that
 - `scorecard`: judge the AGENT on each of these:
 [[criteria]]
   Give `pass`, `fail` or `unknown`, and as evidence the agent's line that shows it, quoted exactly, or a few words saying what was missing. Be fair and strict: a step that did not happen is a fail.
+- `fcr` (first-contact resolution): `yes` when the customer's reason for the contact was dealt with on this call and nobody has to contact them again. `no` when it ends in a callback, a transfer to a person, a follow-up or an unresolved problem. `unknown` when there was no conversation.
+- `csat` (predicted CSAT): the score from 1 to 5 this customer would most likely give in a post-call survey, judged only from what they said and how the call went. 5 is delighted, 3 is neither pleased nor annoyed, 1 is angry. Give 0 when there is no customer to judge (a voicemail, a wrong person). `csat_reason` is one short English sentence naming what it is based on.
+- `sentiment`: the customer's sentiment at the end of the call: `positive`, `neutral` or `negative`.

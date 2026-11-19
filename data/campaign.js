@@ -7,7 +7,7 @@ export const CAMPAIGN = {
   client: "Khidmati Service Centre",
   name: "CPR card renewal reminders",
   goal: "Remind each person of their appointment and confirm they will attend.",
-  rules: ["Calls 9:00 to 18:00", "Two attempts at most", "Says it is an AI", "Offers a person on request", "Honours do not call"],
+  rules: ["Calls 9:00 to 18:00", "Two attempts at most", "Says it is an AI", "Offers a person on request", "Honours the DNC list"],
 };
 
 const AI = "agent";

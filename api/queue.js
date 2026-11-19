@@ -5,7 +5,7 @@
 //   DELETE /api/queue     empty the queue (demo reset)
 // Every call here is fictional: made-up clients, customers and numbers.
 
-import { CRITERIA, FLAGS } from "../lib/scorecard.js";
+import { CRITERIA, FCR, FLAGS, SENTIMENT } from "../lib/scorecard.js";
 import { addCall, clearCalls, getCall, isStoreError, listCalls, saveScore } from "../lib/store.js";
 
 export const SOURCES = ["Copilot", "Campaign", "Triage"];
@@ -38,6 +38,8 @@ export function cleanCall(input = {}) {
       disposition: text(input.disposition, 120),
       summary,
       durationSecs: Math.max(0, Math.min(36000, Math.round(Number(input.durationSecs) || 0))),
+      // After-call work: the time between the end of the call and the saved wrap-up.
+      acwSecs: Math.max(0, Math.min(3600, Math.round(Number(input.acwSecs) || 0))),
       flags: [...new Set(Array.isArray(input.flags) ? input.flags : [])].filter((f) => f in FLAGS),
       transcript,
       conversationId: text(input.conversationId, 80) || undefined,
@@ -54,7 +56,20 @@ export function cleanScore(input = {}) {
     .filter((c) => CRITERIA.some((k) => k.id === c?.id))
     .map((c) => ({ id: c.id, result: oneOf(c.result, ["pass", "fail", "unknown"], "unknown"), evidence: text(c.evidence, 400) }));
   if (!criteria.length) return { ok: false, reason: "a score needs at least one known criterion" };
-  return { ok: true, score: { model: text(input.model, 60), criteria, flags: [...new Set(Array.isArray(input.flags) ? input.flags : [])].filter((f) => f in FLAGS) } };
+  const csat = Math.round(Number(input.csat) || 0);
+  return {
+    ok: true,
+    score: {
+      model: text(input.model, 60),
+      criteria,
+      flags: [...new Set(Array.isArray(input.flags) ? input.flags : [])].filter((f) => f in FLAGS),
+      // Judged from the transcript, not measured: first-contact resolution, predicted CSAT (1 to 5, 0 = cannot tell), sentiment.
+      fcr: oneOf(input.fcr, Object.keys(FCR), "unknown"),
+      csat: csat >= 1 && csat <= 5 ? csat : 0,
+      csatReason: text(input.csatReason ?? input.csat_reason, 240),
+      sentiment: oneOf(input.sentiment, Object.keys(SENTIMENT), "neutral"),
+    },
+  };
 }
 
 export default async function handler(req, res) {

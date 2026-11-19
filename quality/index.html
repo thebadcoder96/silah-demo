@@ -34,10 +34,23 @@
     .ghost:hover { background: var(--raised); }
     .ghost.sure { border-color: var(--fail); color: var(--fail); }
 
-    .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; }
-    .stat span { display: block; font-size: 13px; color: var(--muted); }
-    .stat b { display: block; margin-top: 4px; font: 500 28px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+    .stat span { display: block; font: 700 13px var(--mono); letter-spacing: .4px; color: var(--text); }
+    .stat small { display: block; font-size: 12px; line-height: 1.3; color: var(--muted); min-height: 2.6em; }
+    .stat b { display: block; margin-top: 6px; font: 500 26px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .stat i { display: block; margin-top: 6px; font-style: normal; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat.judged span::after { content: "predicted"; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 999px; font: 400 10px var(--mono); letter-spacing: 0; color: var(--muted); vertical-align: 1px; }
+    .more { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+    .more b { font-weight: 500; color: var(--text-2); margin-right: 4px; }
+    .more span { padding: 1px 9px; border: 1px dashed var(--line-strong); border-radius: 999px; white-space: nowrap; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .kpi { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+    .kpi span { display: block; font: 700 11px var(--mono); letter-spacing: .4px; color: var(--muted); }
+    .kpi b { display: block; margin-top: 2px; font: 500 17px/1.3 var(--mono); }
+    .kpi i { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
+    .kpi.bad b, .autofail { color: var(--fail); }
+    .critical { margin-left: 8px; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
 
     .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
     .box { background: var(--card); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
@@ -93,10 +106,11 @@
     .turn p { margin: 0; unicode-bidi: plaintext; text-align: start; }
     .turn .en { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
 
-    @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
+    @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } .detail { position: static; max-height: none; } }
     @media (max-width: 640px) {
       main { padding: 24px 16px 48px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       td { white-space: nowrap; }
     }
     @media (prefers-reduced-motion: reduce) { tbody tr.new { animation: none; } }
@@ -115,36 +129,41 @@
   <main>
     <div class="head">
       <div style="flex: 1 1 420px">
-        <span class="eyebrow">Behind every call · Quality</span>
-        <h1>Every call, scored</h1>
-        <p class="pitch" style="margin-bottom: 0">Calls from the other demos land here on their own. Each one is scored against your checklist, the same standard for an AI agent and a person, with the line that earned each mark and a flag on the calls a supervisor should hear.</p>
+        <span class="eyebrow">Behind every call · Quality assurance</span>
+        <h1>100% QA coverage</h1>
+        <p class="pitch" style="margin-bottom: 0">A QA team listens to two or three calls in a hundred. Here every call is scored against your QA scorecard, the same standard for an AI agent and a person, with the line that earned each mark. AHT, containment and transfer rate are measured from the calls; FCR, CSAT and ASAT are predicted from the transcript until your own survey data is connected.</p>
       </div>
       <div id="live" class="live"><canvas id="orb" aria-hidden="true"></canvas><span>Live · updates every 2 seconds</span></div>
       <button id="clear" class="ghost">Clear demo queue</button>
     </div>
     <div class="stats">
-      <div class="stat"><span>Calls</span><b id="n-all">0</b></div>
-      <div class="stat"><span>Handled by AI</span><b id="n-ai">0</b></div>
-      <div class="stat"><span>Handled by a person</span><b id="n-human">0</b></div>
-      <div class="stat"><span>Average score</span><b id="n-score">–</b></div>
-      <div class="stat"><span>Flagged</span><b id="n-flag">0</b></div>
+      <div class="stat"><span>Calls</span><small>Every one scored</small><b id="n-all">0</b><i id="s-all">&nbsp;</i></div>
+      <div class="stat"><span>QA score</span><small>Average on the QA scorecard</small><b id="n-score">–</b><i id="s-score">&nbsp;</i></div>
+      <div class="stat"><span>AHT</span><small>Average handle time</small><b id="n-aht">–</b><i id="s-aht">&nbsp;</i></div>
+      <div class="stat judged"><span>FCR</span><small>First-contact resolution</small><b id="n-fcr">–</b><i id="s-fcr">&nbsp;</i></div>
+      <div class="stat judged"><span>CSAT</span><small>Customer satisfaction, out of 5</small><b id="n-csat">–</b><i id="s-csat">&nbsp;</i></div>
+      <div class="stat judged"><span>ASAT</span><small>Satisfaction with the AI agent, out of 5</small><b id="n-asat">–</b><i id="s-asat">&nbsp;</i></div>
+      <div class="stat"><span>Containment</span><small>Finished by the AI agent, no person needed</small><b id="n-contain">–</b><i id="s-contain">&nbsp;</i></div>
+      <div class="stat"><span>Transfer rate</span><small>Handed to a person</small><b id="n-transfer">–</b><i id="s-transfer">&nbsp;</i></div>
+      <div class="stat"><span>Compliance</span><small>Calls with a flag or an auto-fail</small><b id="n-flag">0</b><i id="s-flag">&nbsp;</i></div>
     </div>
+    <p class="more"><b>With your telephony, WFM and survey data connected:</b><span>Service level (80/20)</span><span>ASA</span><span>Abandonment rate</span><span>Occupancy</span><span>Schedule adherence</span><span>Surveyed CSAT</span><span>NPS</span></p>
     <div class="grid">
       <div class="box scroll">
         <table>
-          <thead><tr><th>Ref</th><th>Source</th><th>Client</th><th>Handled by</th><th>Outcome</th><th>Score</th></tr></thead>
+          <thead><tr><th>Ref</th><th>Source</th><th>Client</th><th>Handled by</th><th>Disposition</th><th>AHT</th><th>CSAT</th><th>QA score</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
-        <div id="empty" class="empty">No calls yet. Calls from the campaign desk and the agent copilot appear here as they end</div>
+        <div id="empty" class="empty">No calls yet. Calls from the campaign desk, the triage line and the agent copilot appear here as they end</div>
       </div>
-      <div class="box detail" id="detail"><p class="sub">Select a call to see its transcript and scorecard</p></div>
+      <div class="box detail" id="detail"><p class="sub">Select a call to see its transcript and QA scorecard</p></div>
     </div>
   </main>
   <script src="../config.js"></script>
   <script type="module">
     import { createOrb } from "../lib/orb.js";
     import { createPlayer } from "../lib/player.js";
-    import { FLAGS, criteriaFor } from "../lib/scorecard.js";
+    import { FCR, FLAGS, SENTIMENT, criteriaFor } from "../lib/scorecard.js";
     import { asClientTools, createVoice } from "../lib/voice.js";
 
     const $ = (s) => document.querySelector(s);
@@ -155,19 +174,32 @@
       return n;
     };
     const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
-    const length = (s) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : "");
+    const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
+    const length = (s) => (s ? mmss(s) : "");
+    const pct = (n, of) => (of ? `${Math.round((100 * n) / of)}%` : "–");
+    const mean = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
     const who = (c) => (c.handledBy === "AI" ? "AI agent" : "Human agent");
     const OUTCOME = { answered: "Answered", voicemail: "Voicemail", busy: "Busy", no_answer: "No answer", failed: "Failed" };
     const RESULT = { pass: "Pass", fail: "Fail", unknown: "Unclear" };
 
-    /** A call's score as { passed, of }, or null when it has not been scored. */
+    /** A call's QA score as { passed, of, autoFail, value }, or null when it has not been scored.
+     *  A failed critical check is an auto-fail: the call counts as zero. */
     function tally(c) {
       if (!c.score?.criteria) return null;
-      const applicable = criteriaFor(c.handledBy).map((k) => c.score.criteria.find((x) => x.id === k.id)?.result || "unknown");
-      const judged = applicable.filter((r) => r !== "unknown");
-      return judged.length ? { passed: judged.filter((r) => r === "pass").length, of: judged.length } : null;
+      const applicable = criteriaFor(c.handledBy).map((k) => ({ k, result: c.score.criteria.find((x) => x.id === k.id)?.result || "unknown" }));
+      const judged = applicable.filter((x) => x.result !== "unknown");
+      if (!judged.length) return null;
+      const passed = judged.filter((x) => x.result === "pass").length;
+      const autoFail = judged.some((x) => x.k.critical && x.result === "fail");
+      return { passed, of: judged.length, autoFail, value: autoFail ? 0 : passed / judged.length };
     }
     const allFlags = (c) => [...new Set([...(c.flags || []), ...(c.score?.flags || [])])].filter((f) => f in FLAGS);
+    // The contact-centre numbers. Measured from the call: handle time, and whether a person was needed.
+    const spoke = (c) => c.outcome === "answered" && c.transcript.some((x) => x.who === "customer");
+    const aht = (c) => (c.durationSecs || 0) + (c.acwSecs || 0); // talk + hold (none here) + after-call work
+    const escalated = (c) => /^(transferred|handed|callback)/i.test(c.disposition || "") || (c.handledBy === "AI" && allFlags(c).includes("asked_for_person"));
+    // Judged by the scorer from the transcript: predicted CSAT and first-contact resolution.
+    const csat = (c) => c.score?.csat || 0;
 
     let known = null, selected = null, items = [], showEnglish = false;
     const player = createPlayer();
@@ -178,7 +210,8 @@
     const tried = new Set();
     let scoring = null, gotScore = null;
     const scorer = createVoice({ clientTools: asClientTools({ score_call: (p) => { gotScore?.(p); return { ok: true }; } }) });
-    const canScore = (c) => !c.score && c.transcript.length > 0;
+    // Calls scored before CSAT and FCR were part of the score are scored again.
+    const canScore = (c) => (!c.score || c.score.csat === undefined) && c.transcript.length > 0;
     async function scoreNext() {
       if (scoring || !scorerId || scorer.active()) return;
       const c = items.slice().reverse().find((x) => canScore(x) && !tried.has(x.id)); // oldest first
@@ -196,7 +229,7 @@
           ...c.transcript.map((x) => `${x.who === "agent" ? "AGENT" : "CUSTOMER"}: ${x.text}`),
         ].join("\n"));
         const p = await answer;
-        await fetch(`/api/queue?score=${c.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "Scorer", criteria: p.scorecard, flags: p.flags || [] }) });
+        await fetch(`/api/queue?score=${c.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "Scorer", criteria: p.scorecard, flags: p.flags || [], fcr: p.fcr, csat: p.csat, csat_reason: p.csat_reason, sentiment: p.sentiment }) });
       } catch (err) {
         console.error(c.id, err);
       } finally {
@@ -223,22 +256,30 @@
         el("p", { className: "sub", textContent: [c.source, who(c), OUTCOME[c.outcome], length(c.durationSecs), new Date(c.createdAt).toLocaleString()].filter(Boolean).join(" · ") }),
         el("div", { className: "chips" }, [
           c.simulated ? el("span", { className: "chip", textContent: "Simulated" }) : null,
-          c.disposition ? el("span", { className: "chip", textContent: c.disposition }) : null,
+          c.disposition ? el("span", { className: "chip", textContent: `Disposition: ${c.disposition}` }) : null,
+          c.handledBy === "AI" && spoke(c) ? el("span", { className: "chip", textContent: escalated(c) ? "Transferred to a person" : "Contained by the AI agent" }) : null,
           c.handoverFrom ? el("span", { className: "chip", textContent: `Handed over from ${c.handoverFrom}` }) : null,
           ...flags.map((f) => el("span", { className: "chip warn", textContent: FLAGS[f] })),
         ]),
+        el("div", { className: "kpis" }, [
+          el("div", { className: "kpi" }, [el("span", { textContent: "AHT" }), el("b", { textContent: aht(c) ? mmss(aht(c)) : "–" }), el("i", { textContent: aht(c) ? `Talk ${mmss(c.durationSecs || 0)} · ACW ${mmss(c.acwSecs || 0)}` : "No talk time" })]),
+          el("div", { className: `kpi ${c.score?.fcr === "no" ? "bad" : ""}` }, [el("span", { textContent: "FCR" }), el("b", { textContent: c.score?.fcr ? FCR[c.score.fcr] : "–" }), el("i", { textContent: "First contact" })]),
+          el("div", { className: `kpi ${csat(c) && csat(c) < 3 ? "bad" : ""}` }, [el("span", { textContent: c.handledBy === "AI" ? "CSAT · ASAT" : "CSAT" }), el("b", { textContent: csat(c) ? `${csat(c)} / 5` : "–" }), el("i", { textContent: "Predicted" })]),
+          el("div", { className: `kpi ${c.score?.sentiment === "negative" ? "bad" : ""}` }, [el("span", { textContent: "Sentiment" }), el("b", { textContent: c.score?.sentiment && csat(c) ? SENTIMENT[c.score.sentiment] : "–" }), el("i", { textContent: "At the end" })]),
+        ]),
+        c.score?.csatReason && csat(c) ? el("p", { className: "fine", textContent: `Why ${csat(c)} / 5: ${c.score.csatReason}` }) : null,
         c.summary ? el("h3", { textContent: "Summary" }) : null,
         c.summary ? el("p", { className: "text", textContent: c.summary }) : null,
-        el("h3", {}, ["Scorecard", t ? el("b", { textContent: `${t.passed} / ${t.of}` }) : null]),
+        el("h3", {}, ["QA scorecard", t ? el("b", { className: t.autoFail ? "autofail" : "", textContent: t.autoFail ? `Auto-fail · ${t.passed} / ${t.of}` : `${t.passed} / ${t.of}` }) : null]),
         el("div", {}, criteriaFor(c.handledBy).map((k) => {
           const got = c.score?.criteria?.find((x) => x.id === k.id);
           return el("div", { className: "crit", title: k.what }, [
             el("span", { className: `pill ${got?.result || ""}`, textContent: got ? RESULT[got.result] || "Unclear" : "–" }),
-            el("span", { textContent: k.label }),
+            el("span", {}, [k.label, k.critical ? el("span", { className: "critical", textContent: "Critical" }) : null]),
             got?.evidence ? el("q", { textContent: got.evidence }) : null,
           ]);
         })),
-        el("p", { className: "fine", textContent: t ? `The same checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on; unclear ones are left out of the score.` : scoring === c.id ? "Scoring this call now…" : canScore(c) ? "Waiting to be scored." : "No conversation to score." }),
+        el("p", { className: "fine", textContent: t ? `The same checks apply to every call handled by ${c.handledBy === "AI" ? "an AI agent" : "a person"}. Each result quotes the line it is based on; unclear ones are left out of the score. Failing a critical check is an auto-fail.` : scoring === c.id ? "Scoring this call now…" : canScore(c) ? "Waiting to be scored." : "No conversation to score." }),
         c.transcript.length ? el("h3", {}, ["Transcript", el("span", { className: "tools" }, [c.audio ? listen : null, hasEnglish ? english : null])]) : null,
         c.transcript.length ? el("div", { className: "turns" }, c.transcript.map((x, n) =>
           el("div", { className: `turn ${x.who} ${n === playingLine ? "playing" : ""}` }, [
@@ -252,11 +293,28 @@
 
     function render() {
       const scored = items.map(tally).filter(Boolean);
-      $("#n-all").textContent = items.length;
-      $("#n-ai").textContent = items.filter((c) => c.handledBy === "AI").length;
-      $("#n-human").textContent = items.filter((c) => c.handledBy !== "AI").length;
-      $("#n-score").textContent = scored.length ? `${Math.round((100 * scored.reduce((a, t) => a + t.passed / t.of, 0)) / scored.length)}%` : "–";
-      $("#n-flag").textContent = items.filter((c) => allFlags(c).length).length;
+      const ai = items.filter((c) => c.handledBy === "AI");
+      const talked = items.filter(spoke);
+      const set = (id, value, sub) => { $(`#n-${id}`).textContent = value; $(`#s-${id}`).textContent = sub || "\u00a0"; };
+      set("all", items.length, items.length ? `${ai.length} AI agent · ${items.length - ai.length} human` : "");
+      const fails = scored.filter((t) => t.autoFail).length;
+      set("score", scored.length ? `${Math.round(100 * mean(scored.map((t) => t.value)))}%` : "–", scored.length ? `${scored.length} of ${items.length} scored` : "");
+      const timed = talked.filter((c) => c.durationSecs);
+      set("aht", timed.length ? mmss(mean(timed.map(aht))) : "–", timed.length ? `Talk ${mmss(mean(timed.map((c) => c.durationSecs)))} · ACW ${mmss(mean(timed.map((c) => c.acwSecs || 0)))}` : "");
+      const known_ = items.filter((c) => c.score?.fcr === "yes" || c.score?.fcr === "no");
+      const fixed = known_.filter((c) => c.score.fcr === "yes").length;
+      set("fcr", pct(fixed, known_.length), known_.length ? `${fixed} of ${known_.length} resolved` : "");
+      const rated = items.filter(csat);
+      set("csat", rated.length ? mean(rated.map(csat)).toFixed(1) : "–", rated.length ? `${rated.length} call${rated.length === 1 ? "" : "s"} rated` : "");
+      const ratedAi = rated.filter((c) => c.handledBy === "AI");
+      set("asat", ratedAi.length ? mean(ratedAi.map(csat)).toFixed(1) : "–", ratedAi.length ? `${ratedAi.length} AI-handled call${ratedAi.length === 1 ? "" : "s"}` : "");
+      const aiTalked = talked.filter((c) => c.handledBy === "AI");
+      const kept = aiTalked.filter((c) => !escalated(c)).length;
+      set("contain", pct(kept, aiTalked.length), aiTalked.length ? `${kept} of ${aiTalked.length} AI calls` : "");
+      const moved = talked.filter(escalated).length;
+      set("transfer", pct(moved, talked.length), talked.length ? `${moved} of ${talked.length} answered` : "");
+      const flagged = items.filter((c) => allFlags(c).length || tally(c)?.autoFail).length;
+      set("flag", flagged, fails ? `${fails} auto-fail${fails === 1 ? "" : "s"}` : "");
       $("#empty").hidden = items.length > 0;
       const fresh = known && items.find((c) => !known.has(c.id));
       if (fresh) selected = fresh.id;
@@ -268,10 +326,12 @@
           el("td", {}, el("span", { className: `tag ${c.source.toLowerCase()}`, textContent: c.source })),
           el("td", { className: "nowrap" }, [c.client || "–", el("span", { className: "sub2", textContent: c.scenario })]),
           el("td", { className: "nowrap", textContent: who(c) }),
-          el("td", { className: "nowrap" }, [OUTCOME[c.outcome] || c.outcome, c.simulated ? el("span", { className: "sub2", textContent: "Simulated" }) : null]),
+          el("td", { className: "nowrap" }, [c.disposition || OUTCOME[c.outcome] || c.outcome, el("span", { className: "sub2", textContent: [c.disposition ? OUTCOME[c.outcome] : "", c.simulated ? "Simulated" : ""].filter(Boolean).join(" · ") })]),
+          el("td", { className: "nowrap time", textContent: aht(c) ? mmss(aht(c)) : "–" }),
+          el("td", { className: "nowrap time", textContent: csat(c) ? `${csat(c)} / 5` : "–" }),
           el("td", { className: "nowrap" }, [
-            el("span", { className: `score ${t ? "" : "none"}`, textContent: t ? `${t.passed} / ${t.of}` : scoring === c.id ? "Scoring…" : canScore(c) ? "Waiting" : "–" }),
-            flags.length ? el("span", { className: "sub2 flag", textContent: flags.length === 1 ? FLAGS[flags[0]] : `${flags.length} flags` }) : null,
+            el("span", { className: `score ${t ? "" : "none"}`, textContent: scoring === c.id ? "Scoring…" : t ? `${t.passed} / ${t.of}` : canScore(c) ? "Waiting" : "–" }),
+            t?.autoFail ? el("span", { className: "sub2 autofail", textContent: "Auto-fail" }) : flags.length ? el("span", { className: "sub2 flag", textContent: flags.length === 1 ? FLAGS[flags[0]] : `${flags.length} flags` }) : null,
           ]),
         ]);
         tr.addEventListener("click", () => { player.stop(); playingLine = -1; selected = c.id; render(); });
@@ -311,7 +371,7 @@
       clearTimeout(armed); armed = null; b.textContent = "Clear demo queue"; b.classList.remove("sure");
       await fetch("/api/queue", { method: "DELETE" });
       selected = null;
-      $("#detail").replaceChildren(el("p", { className: "sub", textContent: "Select a call to see its transcript and scorecard" }));
+      $("#detail").replaceChildren(el("p", { className: "sub", textContent: "Select a call to see its transcript and QA scorecard" }));
       poll();
     });
 
