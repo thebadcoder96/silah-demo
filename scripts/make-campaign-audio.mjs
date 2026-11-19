@@ -18,10 +18,10 @@ const key = (await readFile(`${root}.env`, "utf8")).match(/^\s*ELEVENLABS_API_KE
 const again = process.argv.includes("--all");
 
 const MODEL = "eleven_v4_turbo";
-// The AI agent keeps one voice per language; customers get a voice by gender.
+// The AI agent is Salim in both languages, as on the live agents; customers get a voice by gender.
 const VOICES = {
-  ar: { agent: "cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily */, male: "Dh7ijKbaKhas3blqwrt3" /* Salim */, female: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
-  en: { agent: "J3Ei0Lj6fAobhIqY5ySH" /* Paul, the 311 line */, male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
+  ar: { agent: "Dh7ijKbaKhas3blqwrt3" /* Salim */, male: "cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily */, female: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
+  en: { agent: "Dh7ijKbaKhas3blqwrt3" /* Salim */, male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
 };
 
 async function speak(voice, text) {

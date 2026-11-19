@@ -84,7 +84,7 @@ A score is saved beside the call with `POST /api/queue?score=<reference>`, so a 
 
 `triage/` is the main line of the made-up Khidmati Service Centre. An AI agent (`agents/triage.md`, one per language) answers, deals with the simple questions itself, and sends the rest to a desk with a summary. Its two client tools, `show_triage` and `transfer_call`, drive the page. The desks are in `data/triage.js`. In the browser the transfer is shown, not dialled; on a real phone number the platform's transfer-to-number tool would ring the desk's phone. Every call is saved to the queue and scored on the quality desk.
 
-Voices: the centre's AI agents speak with Nasser AlJubaily in Arabic and the Montgomery 311 line's voice in English; the male customer in Arabic is Salim. They are set at the top of `scripts/setup-agents.mjs` and `scripts/make-campaign-audio.mjs`.
+Voices: the centre's AI agents speak with Salim, a Bahraini voice made on the account, in both languages; in the recorded campaign calls the male Arabic customer is Nasser AlJubaily. How the agents sound Bahraini, in Arabic and in English, is one phrase bank in `agents/dialect.md`, a draft for native speakers to correct. They are set at the top of `scripts/setup-agents.mjs` and `scripts/make-campaign-audio.mjs`.
 
 ## Real phone calls
 

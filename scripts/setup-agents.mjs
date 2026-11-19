@@ -28,7 +28,7 @@ const args = process.argv.slice(2);
 const transferNumber = (await readFile(`${root}.env`, "utf8").catch(() => "")).match(/^\s*TRANSFER_NUMBER\s*=\s*"?(\+\d{8,15})/m)?.[1] || "";
 const AFTER_TRANSFER = {
   shown: "After the tool returns, say one short goodbye sentence and end the call.",
-  dialled: "After the tool returns, call `transfer_to_number` at once: `client_message` is one short sentence telling the caller they are being connected, in the language of the call, and `agent_message` is the same English summary, for the person who picks up. Do not say goodbye and do not end the call yourself; the transfer connects them.",
+  dialled: "After the tool returns, call `transfer_to_number` at once, without speaking first: `client_message` is three or four words asking the caller to hold, in the language of the call (you have already told them where they are going), and `agent_message` is the same English summary, for the person who picks up. Do not say goodbye and do not end the call yourself; the transfer connects them.",
 };
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : "";
 
@@ -39,12 +39,15 @@ const TTS_MODEL = "eleven_v4_turbo";
 // the ElevenLabs library, added to the account the first time this runs.
 // Change them here after listening on voices.html.
 const VOICES = {
-  ar: { male: "Dh7ijKbaKhas3blqwrt3" /* Salim, a voice made on this account */, female: "oOucsh1OZElozgDVjcfe" /* Rafoush */, female2: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
+  ar: { male: "Dh7ijKbaKhas3blqwrt3" /* Salim too: on the copilot the agent is a person, so there is no clash */, female: "oOucsh1OZElozgDVjcfe" /* Rafoush */, female2: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
   en: { male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "cuTixVvCOWFxeH3oGE9m" /* Clara */, female2: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
 };
-// The AI agents that speak for the centre: Nasser in Arabic, and in English the
-// voice of the Montgomery 311 line.
-const AGENT_VOICE = { ar: "cFUFIbKkO2iZFwS8cRnY" /* Nasser AlJubaily - Authentic Saudi Pro */, en: "J3Ei0Lj6fAobhIqY5ySH" /* Paul, the 311 line */ };
+// The AI agents that speak for the centre: Salim, a Bahraini voice made on this
+// account, in both languages, so Arabic words inside English are said the
+// Arabic way. (Before: Nasser AlJubaily cFUFIbKkO2iZFwS8cRnY in Arabic, and
+// Paul J3Ei0Lj6fAobhIqY5ySH, the Montgomery 311 voice, in English.)
+const SALIM = "Dh7ijKbaKhas3blqwrt3";
+const AGENT_VOICE = { ar: SALIM, en: SALIM };
 // Two scenarios have female callers; give the second one a different voice.
 const voiceFor = (scenario, language) => VOICES[language][scenario.id === "government" ? "female2" : scenario.caller.gender];
 
@@ -85,6 +88,14 @@ async function doc(file) {
     return found;
   };
 }
+
+// How Bahrain sounds, in Arabic and in English: one phrase bank (agents/dialect.md)
+// added to the language rules of every agent that speaks.
+const dialect = await doc("dialect.md");
+const BAHRAINI = { ar: dialect("Bahraini Arabic"), en: dialect("Bahraini English") };
+const WHEN = { ar: "WHEN THE CALL IS IN ARABIC", en: "WHEN THE CALL IS IN ENGLISH" };
+const ONE_LANGUAGE = "One language per reply: the one the other person last spoke. An Arabic reply is Arabic from the first word to the last, with no English sentence in it. An English reply is English, with only the few Arabic expressions described below.";
+const spoken = (rules, ...languages) => (languages.length > 1 ? [rules, ONE_LANGUAGE, ...languages.map((l) => `${WHEN[l]}:\n${BAHRAINI[l]}`)] : [rules, BAHRAINI[languages[0]]]).join("\n\n");
 
 // ---------- voices ----------
 
@@ -292,7 +303,7 @@ async function setupCallers() {
     for (const language of ["ar", "en"]) {
       const voice_id = voiceFor(s, language);
       await ensureVoice(voice_id);
-      const fill = { name: s.customer.name, name_ar: s.customer.nameAr, client: s.client, brief: s.caller.brief, cpr: s.customer.cprLast4.split("").join(" "), callback: s.caller.callback, mood: s.caller.mood, happy: s.caller.happyWhen, language_rules: read(`Language rules: ${language === "ar" ? "Arabic" : "English"}`) };
+      const fill = { name: s.customer.name, name_ar: s.customer.nameAr, client: s.client, brief: s.caller.brief, cpr: s.customer.cprLast4.split("").join(" "), callback: s.caller.callback, mood: s.caller.mood, happy: s.caller.happyWhen, language_rules: spoken(read(`Language rules: ${language === "ar" ? "Arabic" : "English"}`), language) };
       // Two passes, so the placeholders inside the language rules are filled too.
       const once = (text) => text.replace(/\[\[(\w+)\]\]/g, (_, k) => fill[k] ?? "");
       const prompt = once(once(template));
@@ -334,7 +345,7 @@ async function setupTriage() {
         agent: {
           first_message: read(`First message: ${name}`),
           language,
-          prompt: { prompt: read("System prompt").replace("[[language_rules]]", read(`Language rules: ${name}`)).replace("[[after_transfer]]", AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
+          prompt: { prompt: read("System prompt").replace("[[language_rules]]", spoken(read(`Language rules: ${name}`), language, language === "ar" ? "en" : "ar")).replace("[[after_transfer]]", AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids, built_in_tools: { end_call: { type: "system", name: "end_call", description: "", params: { system_tool_type: "end_call" } } } },
         },
         tts: { voice_id, model_id: TTS_MODEL, expressive_mode: false },
         asr: { keywords: ["Khidmati", "CPR"] },
@@ -376,17 +387,21 @@ async function setupPhone() {
     },
   } : {};
   console.log(transferNumber ? "  transfers ring the number in .env" : "  no TRANSFER_NUMBER in .env: the agent says it is transferring, then ends the call");
-  const bothLanguages = "Start in Bahraini Arabic, the everyday spoken dialect, not formal Arabic. If the caller speaks English, switch to plain English and stay in it. Say times and numbers in words.";
+  const bothLanguages = spoken("Your greeting was in Bahraini Arabic. Answer in the language the caller uses: Bahraini Arabic, the everyday spoken dialect and not formal Arabic, or English. Stay in that language unless the caller changes. Say times and numbers in words.", "ar", "en");
   config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)", {
     conversation_config: {
       agent: {
         first_message: triage("First message: Arabic"),
-        language: "ar",
+        // English is the platform language although the greeting is Arabic: the warm transfer
+        // hands Twilio this language, and Twilio refuses "ar" there (error 13512), which
+        // dropped every transfer. Arabic is listed as the agent's second language.
+        language: "en",
         prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, ...TRANSFER } },
       },
       tts: { voice_id: AGENT_VOICE.ar, model_id: TTS_MODEL, expressive_mode: false },
       asr: { keywords: ["Khidmati", "CPR"] },
       conversation: { max_duration_seconds: 600 },
+      language_presets: { ar: { overrides: { agent: { first_message: triage("First message: Arabic") } } } },
     },
   });
   await saveConfig();
@@ -402,7 +417,7 @@ async function setupPhone() {
           first_message: campaign(`First message: ${name}`),
           language,
           dynamic_variables: { dynamic_variable_placeholders: { name: "there", appointment: "Sunday at ten in the morning", centre: "the Isa Town centre" } },
-          prompt: { prompt: campaign("System prompt").replace("[[language_rules]]", campaign(`Language rules: ${name}`)), llm: LLM, temperature: 0.3, built_in_tools: END_CALL },
+          prompt: { prompt: campaign("System prompt").replace("[[language_rules]]", spoken(campaign(`Language rules: ${name}`), language, language === "ar" ? "en" : "ar")), llm: LLM, temperature: 0.3, built_in_tools: END_CALL },
         },
         tts: { voice_id: AGENT_VOICE[language], model_id: TTS_MODEL, expressive_mode: false },
         asr: { keywords: ["Khidmati", "CPR"] },

@@ -40,6 +40,9 @@ async function saveOnce(conversationId, record) {
   return cleaned.ok ? (await addCall(cleaned.call)).id : "";
 }
 
+// English lines now carry Arabic greetings, so a line is Arabic only when most of its letters are.
+const mostlyArabic = (text = "") => (text.match(/[؀-ۿ]/g) || []).length > (text.match(/[a-z]/gi) || []).length;
+
 // ---------- the triage agent's tools, on a phone call ----------
 
 const deskOf = (id) => (id in TRIAGE.desks ? id : "cpr");
@@ -77,7 +80,7 @@ async function triageLine() {
   if (full.status === "done" && transcript.length >= 2) {
     const b = out.board || {};
     out.call.ref = await saveOnce(latest.conversation_id, {
-      source: "Triage", handledBy: "AI", client: TRIAGE.client, scenario: "Main line triage (phone)", customer: b.caller || "", language: /[؀-ۿ]/.test(transcript[1]?.text || "") ? "ar" : "en",
+      source: "Triage", handledBy: "AI", client: TRIAGE.client, scenario: "Main line triage (phone)", customer: b.caller || "", language: mostlyArabic(transcript[1]?.text) ? "ar" : "en",
       outcome: "answered", disposition: b.transferred ? `Transferred to the ${TRIAGE.desks[b.transferred].name}` : "Answered by the AI agent",
       summary: b.summary || full.analysis?.transcript_summary || b.need || "", durationSecs: out.call.seconds, transcript,
     });
@@ -119,7 +122,7 @@ async function outbound(id) {
     const vars = full.conversation_initiation_client_data?.dynamic_variables || {};
     call.ref = await saveOnce(id, {
       source: "Campaign", simulated: false, handledBy: "AI", client: CAMPAIGN.client, scenario: `${CAMPAIGN.name} (live call)`, customer: vars.name || "",
-      language: /[؀-ۿ]/.test(transcript[0]?.text || "") ? "ar" : "en", outcome: full.status === "failed" ? "failed" : answered ? "answered" : "no_answer",
+      language: mostlyArabic(transcript.find((t) => t.who !== "agent")?.text || transcript[0]?.text) ? "ar" : "en", outcome: full.status === "failed" ? "failed" : answered ? "answered" : "no_answer",
       disposition: answered ? "Live call" : "Not answered", summary: call.summary || (answered ? "" : "The call was not answered."), durationSecs: call.seconds, transcript,
     });
   }

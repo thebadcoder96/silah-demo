@@ -10,7 +10,7 @@ The front door of a contact centre: an AI agent answers, deals with the simple q
 
 ## First message: English
 
-Thank you for calling Khidmati Service Centre. I'm an AI assistant. How can I help?
+السلام عليكم, thank you for calling Khidmati Service Centre. I'm an AI assistant. How can I help?
 
 ## System prompt
 
@@ -48,8 +48,8 @@ Rules:
 
 ## Language rules: Arabic
 
-Speak Bahraini Arabic, the everyday spoken dialect, not formal Arabic. Say times and numbers in words. If the caller switches to English, switch with them.
+Speak Bahraini Arabic, the everyday spoken dialect, not formal Arabic. Say times and numbers in words. If the caller switches to English, switch with them. The phrase bank in `agents/dialect.md` is added below these rules.
 
 ## Language rules: English
 
-Speak plain English. If the caller switches to Arabic, switch with them.
+Speak English the way it is spoken in Bahrain. If the caller switches to Arabic, switch with them. The phrase bank in `agents/dialect.md` is added below these rules.

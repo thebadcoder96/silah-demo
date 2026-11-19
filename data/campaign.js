@@ -49,15 +49,15 @@ export const LEADS = [
     name: "Ebrahim Salman", gender: "male", phone: "+973 3••• ••88", language: "en", appointment: "Tue 24 Nov, 08:30", outcome: "answered", result: "Confirmed", secs: 44,
     summary: "Reminder for an CPR card renewal on Tuesday at half past eight. He confirmed and asked what to bring; the assistant listed the documents.",
     transcript: [
-      t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Ebrahim Salman?"),
+      t(AI, "السلام عليكم, this is the AI assistant from Khidmati Service Centre. Am I speaking with Ebrahim Salman?"),
       t(C, "Yes, speaking."),
       t(AI, "I'm calling to remind you of your CPR card renewal appointment on Tuesday at half past eight in the morning, at the Isa Town centre. Will you be able to attend?"),
       t(C, "Yes, I'll be there. What do I need to bring?"),
       t(AI, "Your current CPR card and proof of address dated within the last three months. The renewal fee is paid at the centre by card."),
       t(C, "Great, thanks."),
-      t(AI, "You're welcome. Your appointment is confirmed for Tuesday at half past eight. Is there anything else I can help with?"),
+      t(AI, "You're welcome. إن شاء الله we will see you on Tuesday at half past eight. Is there anything else I can help with?"),
       t(C, "No, that's all."),
-      t(AI, "Thank you. Goodbye."),
+      t(AI, "Thank you. مع السلامة."),
     ],
   },
   {
@@ -68,7 +68,7 @@ export const LEADS = [
     name: "Sara Yousif", gender: "female", phone: "+973 3••• ••30", language: "en", appointment: "Wed 25 Nov, 09:15", outcome: "answered", result: "Opted out", secs: 27, flags: ["do_not_call"],
     summary: "She asked not to be called again. Her number was marked do not call and no further attempts will be made.",
     transcript: [
-      t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Sara Yousif?"),
+      t(AI, "السلام عليكم, this is the AI assistant from Khidmati Service Centre. Am I speaking with Sara Yousif?"),
       t(C, "Yes, but please don't call me again. Send me a text instead."),
       t(AI, "Understood. I've marked your number as do not call, so you won't get any more calls from us. Sorry to have disturbed you. Goodbye."),
     ],
@@ -109,7 +109,7 @@ export const LEADS = [
     name: "Mohammed Al Doseri", gender: "male", phone: "+973 3••• ••19", language: "en", appointment: "Mon 23 Nov, 14:15", outcome: "answered", result: "Wrong person", secs: 24,
     summary: "The person who answered was not Mohammed Al Doseri. The assistant shared no appointment details and ended the call.",
     transcript: [
-      t(AI, "Hello, this is the AI assistant from Khidmati Service Centre. Am I speaking with Mohammed Al Doseri?"),
+      t(AI, "السلام عليكم, this is the AI assistant from Khidmati Service Centre. Am I speaking with Mohammed Al Doseri?"),
       t(C, "No, this is his brother. What is it about?"),
       t(AI, "Thank you. I can only discuss this with Mohammed himself. I'll try him again another time. Sorry to disturb you, goodbye."),
     ],

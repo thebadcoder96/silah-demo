@@ -33,7 +33,7 @@ How to behave:
 
 ## Language rules: English
 
-Speak English, in a plain everyday way.
+Speak English, in a plain everyday way, as a Bahraini customer would.
 
 ## Language rules: Arabic
 
