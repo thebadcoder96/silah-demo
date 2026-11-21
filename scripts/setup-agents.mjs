@@ -40,7 +40,8 @@ const TTS_MODEL = "eleven_v4_turbo";
 // Change them here after listening on voices.html.
 const VOICES = {
   ar: { male: "Dh7ijKbaKhas3blqwrt3" /* Salim too: on the copilot the agent is a person, so there is no clash */, female: "oOucsh1OZElozgDVjcfe" /* Rafoush */, female2: "albaa6OioIhKtKdCEkQw" /* Laloosh */ },
-  en: { male: "cjVigY5qzO86Huf0OWal" /* Eric */, female: "cuTixVvCOWFxeH3oGE9m" /* Clara */, female2: "EXAVITQu4vr4xnSDxMaL" /* Sarah */ },
+  // English customers speak with the two Bahraini voices, as a Bahraini tester suggested.
+  en: { male: "Dh7ijKbaKhas3blqwrt3" /* Salim */, female: "zTndhLl1TpzeIUhS5giP" /* Rasya */, female2: "zTndhLl1TpzeIUhS5giP" /* Rasya */ },
 };
 // The AI agents that speak for the centre: Salim, a Bahraini voice made on this
 // account, in both languages, so Arabic words inside English are said the
@@ -421,7 +422,7 @@ async function setupPhone() {
         agent: {
           first_message: campaign(`First message: ${name}`),
           language,
-          dynamic_variables: { dynamic_variable_placeholders: { name: "there", appointment: "Sunday at ten in the morning", centre: "the Isa Town centre" } },
+          dynamic_variables: { dynamic_variable_placeholders: { name: "there", gender: "male", appointment: "Sunday at ten in the morning", centre: "the Isa Town centre" } },
           prompt: { prompt: campaign("System prompt").replace("[[language_rules]]", spoken(campaign(`Language rules: ${name}`), language, language === "ar" ? "en" : "ar")), llm: LLM, temperature: 0.3, built_in_tools: END_CALL },
         },
         tts: { voice_id: CAMPAIGN_VOICE, model_id: TTS_MODEL, expressive_mode: false },

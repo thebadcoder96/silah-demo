@@ -141,9 +141,10 @@
       <p id="lc-sub" class="sub">The AI agent rings this number and gives the same CPR card renewal reminder, live. Use your own phone.</p>
       <form id="lc-form">
         <input id="lc-to" inputmode="tel" placeholder="+973 3300 1122" aria-label="Phone number, in international form" required>
-        <input id="lc-name" placeholder="Name to ask for" aria-label="Name to ask for">
+        <input id="lc-name" placeholder="Name to ask for" aria-label="Name to ask for" required>
+        <select id="lc-gender" aria-label="Male or female" required><option value="" selected disabled>Male or female?</option><option value="male">Male · ذكر</option><option value="female">Female · أنثى</option></select>
         <select id="lc-lang" aria-label="Language"><option value="ar">العربية</option><option value="en">English</option></select>
-        <button class="primary" id="lc-go">Call now</button>
+        <button class="primary" id="lc-go" disabled title="Fill in the number, the name and male or female first">Call now</button>
       </form>
       <div id="lc-turns" class="turns"></div>
     </section>
@@ -180,14 +181,21 @@
       $("#callme").title = `Calls from ${d.number}`;
     }).catch(() => {});
     $("#callme").addEventListener("click", () => { $("#livecall").hidden = !$("#livecall").hidden; if (!$("#livecall").hidden) $("#lc-to").focus(); });
+    // Arabic speaks to a man and a woman differently, so the call waits until it knows which.
+    let calling = false;
+    const ready = () => $("#lc-to").value.trim() && $("#lc-name").value.trim() && $("#lc-gender").value;
+    const checkForm = () => { $("#lc-go").disabled = calling || !ready(); };
+    for (const id of ["#lc-to", "#lc-name", "#lc-gender"]) { $(id).addEventListener("input", checkForm); $(id).addEventListener("change", checkForm); }
     const STATUS = { initiated: "Ringing…", "in-progress": "On the call", processing: "Call ended, writing it up…", done: "Call ended", failed: "The call did not connect" };
     $("#lc-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      $("#lc-go").disabled = true;
+      if (!ready()) return;
+      calling = true;
+      checkForm();
       $("#lc-turns").replaceChildren();
       $("#lc-state").textContent = "Dialling…";
       try {
-        const made = await (await fetch("/api/phone", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: $("#lc-to").value, name: $("#lc-name").value, language: $("#lc-lang").value }) })).json();
+        const made = await (await fetch("/api/phone", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: $("#lc-to").value, name: $("#lc-name").value, gender: $("#lc-gender").value, language: $("#lc-lang").value }) })).json();
         if (!made.ok) throw new Error(made.reason || made.error || "The call could not be placed.");
         $("#lc-sub").textContent = "The transcript fills in below; some of it may only arrive when the call ends.";
         let drawn = 0;
@@ -208,7 +216,8 @@
         $("#lc-state").textContent = "";
         $("#lc-sub").textContent = err.message || "The call could not be placed.";
       }
-      $("#lc-go").disabled = false;
+      calling = false;
+      checkForm();
     });
     const PACE = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.35 : 1;
 

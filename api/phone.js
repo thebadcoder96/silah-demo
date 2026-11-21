@@ -101,12 +101,16 @@ async function dial(body) {
   const language = body.language === "en" ? "en" : "ar";
   const agent = AGENTS.campaignAgentIds?.[language];
   if (!KEY() || !agent || !AGENTS.phone?.id) return [503, { ok: false, reason: !KEY() ? "The server has no ElevenLabs key yet." : "No phone number is connected yet." }];
-  const name = String(body.name || "").trim().slice(0, 60) || (language === "ar" ? "حضرتكم" : "there");
+  const name = String(body.name || "").trim().slice(0, 60);
+  if (!name) return [422, { ok: false, reason: "Give the name of the person to ask for." }];
+  // Arabic addresses a man and a woman differently, so the agent has to know which.
+  if (!["male", "female"].includes(body.gender)) return [422, { ok: false, reason: "Choose male or female, so the agent addresses the person correctly." }];
+  const gender = body.gender;
   const made = await eleven("/v1/convai/twilio/outbound-call", {
     agent_id: agent,
     agent_phone_number_id: AGENTS.phone.id,
     to_number: to,
-    conversation_initiation_client_data: { dynamic_variables: { name, appointment: APPOINTMENT[language].day, centre: APPOINTMENT[language].centre } },
+    conversation_initiation_client_data: { dynamic_variables: { name, gender, appointment: APPOINTMENT[language].day, centre: APPOINTMENT[language].centre } },
   });
   if (!made.conversation_id) return [502, { ok: false, reason: made.message || "The call could not be placed." }];
   return [201, { ok: true, id: made.conversation_id }];
