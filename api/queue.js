@@ -4,9 +4,12 @@
 //   POST   /api/queue?score=SIL-1004   attach (or replace) the score for a call
 //   DELETE /api/queue     empty the queue (demo reset)
 // Every call here is fictional: made-up clients, customers and numbers.
+// Each share link has its own queue: a caller sees their link's calls plus the ones that belong
+// to no link (the examples and calls to the real phone number), and clears only their own.
 
 import { CRITERIA, FCR, FLAGS, SENTIMENT } from "../lib/scorecard.js";
 import { addCall, clearCalls, getCall, isStoreError, listCalls, saveScore } from "../lib/store.js";
+import { bucketOf, clearableBy, visibleTo } from "../lib/visit.js";
 
 export const SOURCES = ["Copilot", "Campaign", "Triage"];
 // The same outcome names the ElevenLabs calling API returns, so real and simulated calls look alike.
@@ -74,9 +77,10 @@ export function cleanScore(input = {}) {
 
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") return res.status(200).json({ calls: await listCalls() });
+    const bucket = bucketOf(req);
+    if (req.method === "GET") return res.status(200).json({ calls: (await listCalls()).filter(visibleTo(bucket)) });
     if (req.method === "DELETE") {
-      await clearCalls();
+      await clearCalls(clearableBy(bucket));
       return res.status(200).json({ cleared: true });
     }
     if (req.method !== "POST") return res.status(405).json({ error: "method not allowed" });
@@ -92,12 +96,13 @@ export default async function handler(req, res) {
     if (scoreFor) {
       const cleaned = cleanScore(body);
       if (!cleaned.ok) return res.status(422).json(cleaned);
-      if (!(await getCall(scoreFor))) return res.status(404).json({ ok: false, reason: "no such call" });
+      const scored = await getCall(scoreFor);
+      if (!scored || !visibleTo(bucket)(scored)) return res.status(404).json({ ok: false, reason: "no such call" });
       return res.status(201).json({ ok: true, score: await saveScore(scoreFor, cleaned.score) });
     }
     const cleaned = cleanCall(body);
     if (!cleaned.ok) return res.status(422).json(cleaned);
-    return res.status(201).json({ ok: true, call: await addCall(cleaned.call) });
+    return res.status(201).json({ ok: true, call: await addCall({ ...cleaned.call, bucket }) });
   } catch (err) {
     console.error(err);
     return res.status(502).json({ error: isStoreError(err) ? "The demo queue could not save or read calls. Check the project's Blob store." : "Something went wrong." });

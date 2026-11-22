@@ -8,10 +8,14 @@
 // Finished calls are saved to the same queue as every other demo call, once,
 // so the quality desk scores them. Reads from ElevenLabs are limited to this
 // demo's own phone agents.
+//
+// Placing a call needs a visit under an active share link: the gateway is asked first
+// (lib/visit.js), and it limits each link to a few calls a day.
 
 import AGENTS from "../lib/agents.js";
 import { addCall, getLive, listCalls, setLive } from "../lib/store.js";
 import { cleanCall } from "./queue.js";
+import { bucketOf, mayDial } from "../lib/visit.js";
 import { TRIAGE } from "../data/triage.js";
 import { CAMPAIGN } from "../data/campaign.js";
 
@@ -33,11 +37,11 @@ async function eleven(path, body) {
 const lines = (full) => (full.transcript || []).filter((t) => t.message).map((t) => ({ who: t.role === "user" ? "customer" : "agent", text: t.message }));
 
 /** Save a finished call to the queue unless it is already there. Returns its reference, or "". */
-async function saveOnce(conversationId, record) {
+async function saveOnce(conversationId, record, bucket = "shared") {
   const found = (await listCalls()).find((c) => c.conversationId === conversationId);
   if (found) return found.id;
   const cleaned = cleanCall({ ...record, conversationId });
-  return cleaned.ok ? (await addCall(cleaned.call)).id : "";
+  return cleaned.ok ? (await addCall({ ...cleaned.call, bucket })).id : "";
 }
 
 // English lines now carry Arabic greetings, so a line is Arabic only when most of its letters are.
@@ -95,7 +99,7 @@ const APPOINTMENT = {
   en: { day: "Sunday at ten in the morning", centre: "the Isa Town centre" },
 };
 
-async function dial(body) {
+async function dial(body, allowed) {
   const to = String(body.to || "").replace(/[\s()-]/g, "");
   if (!/^\+\d{8,15}$/.test(to)) return [422, { ok: false, reason: "Give the number in international form, for example +97333001122." }];
   const language = body.language === "en" ? "en" : "ar";
@@ -106,6 +110,8 @@ async function dial(body) {
   // Arabic addresses a man and a woman differently, so the agent has to know which.
   if (!["male", "female"].includes(body.gender)) return [422, { ok: false, reason: "Choose male or female, so the agent addresses the person correctly." }];
   const gender = body.gender;
+  const may = await allowed();
+  if (!may.ok) return [403, { ok: false, reason: may.reason }];
   const made = await eleven("/v1/convai/twilio/outbound-call", {
     agent_id: agent,
     agent_phone_number_id: AGENTS.phone.id,
@@ -116,7 +122,7 @@ async function dial(body) {
   return [201, { ok: true, id: made.conversation_id }];
 }
 
-async function outbound(id) {
+async function outbound(id, bucket) {
   const full = await eleven(`/v1/convai/conversations/${encodeURIComponent(id)}`);
   if (!Object.values(AGENTS.campaignAgentIds || {}).includes(full.agent_id)) return [404, { ok: false, reason: "no such call" }];
   const transcript = lines(full);
@@ -128,7 +134,7 @@ async function outbound(id) {
       source: "Campaign", simulated: false, handledBy: "AI", client: CAMPAIGN.client, scenario: `${CAMPAIGN.name} (live call)`, customer: vars.name || "",
       language: mostlyArabic(transcript.find((t) => t.who !== "agent")?.text || transcript[0]?.text) ? "ar" : "en", outcome: full.status === "failed" ? "failed" : answered ? "answered" : "no_answer",
       disposition: answered ? "Live call" : "Not answered", summary: call.summary || (answered ? "" : "The call was not answered."), durationSecs: call.seconds, transcript,
-    });
+    }, bucket);
   }
   return [200, { ok: true, call }];
 }
@@ -147,12 +153,13 @@ export default async function handler(req, res) {
   try {
     if (req.method === "POST" && query.tool) return res.status(200).json(await tool(query.tool, body));
     if (req.method === "POST") {
-      const [code, out] = await dial(body);
+      // The gateway is asked only once the request is one we would dial, so a mistyped number does not use up a call.
+      const [code, out] = await dial(body, () => mayDial(req));
       return res.status(code).json(out);
     }
     if (req.method !== "GET") return res.status(405).json({ error: "method not allowed" });
     if (query.id) {
-      const [code, out] = await outbound(query.id);
+      const [code, out] = await outbound(query.id, bucketOf(req));
       return res.status(code).json(out);
     }
     return res.status(200).json(await triageLine());
