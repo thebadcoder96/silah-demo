@@ -174,7 +174,7 @@ async function outbound(id, bucket) {
   const full = await eleven(`/v1/convai/conversations/${encodeURIComponent(id)}`);
   if (!Object.values(AGENTS.campaignAgentIds || {}).includes(full.agent_id)) return [404, { ok: false, reason: "no such call" }];
   const transcript = lines(full);
-  const call = { id, status: full.status, live: LIVE.has(full.status), seconds: full.metadata?.call_duration_secs || 0, messages: transcript, summary: full.analysis?.transcript_summary || "", ref: "" };
+  const call = { id, status: full.status, live: LIVE.has(full.status) && Date.now() / 1000 - (full.metadata?.start_time_unix_secs || Date.now() / 1000) < 12 * 60, seconds: full.metadata?.call_duration_secs || 0, messages: transcript, summary: full.analysis?.transcript_summary || "", ref: "" };
   if (full.status === "done" || full.status === "failed") {
     const answered = transcript.some((t) => t.who === "customer");
     const vars = full.conversation_initiation_client_data?.dynamic_variables || {};

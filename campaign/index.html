@@ -219,6 +219,12 @@
             $("#lc-sub").replaceChildren(call.summary || "The call has ended.", call.ref ? " " : "", call.ref ? el("a", { href: "../quality/", target: "silah-quality", textContent: `Saved as ${call.ref}. Open the quality desk →` }) : "");
             break;
           }
+          // A call that ElevenLabs never finishes stops counting as live after a few minutes.
+          if (["initiated", "in-progress"].includes(call.status) && !call.live) {
+            $("#lc-state").textContent = "";
+            $("#lc-sub").textContent = "The call did not connect. Try again.";
+            break;
+          }
         }
       } catch (err) {
         $("#lc-state").textContent = "";
