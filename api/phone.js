@@ -2,7 +2,8 @@
 //
 //   GET  /api/phone?line=triage     the latest call to the triage number: what the agent understood, and the transcript
 //   POST /api/phone?tool=<name>     called by the triage agent itself during a phone call (its tools have no browser to run in)
-//   POST /api/phone                 { to, name, language }: the campaign agent rings that number
+//   POST /api/phone                 { to, name, gender, language }: the campaign agent rings that number
+//   POST /api/phone                 { line: "triage", to, desk }: the triage agent rings that number; its transfer rings desk, if given
 //   GET  /api/phone?id=<id>         that outbound call: status and transcript
 //
 // Finished calls are saved to the same queue as every other demo call, once,
@@ -73,14 +74,18 @@ async function triageLine() {
   const board = await getLive("triage");
   if (board && Date.now() - board.at < RECENT_SECS * 1000) out.board = board;
   if (!KEY() || !AGENTS.triagePhoneAgentId) return { ...out, setup: KEY() ? "no phone agent yet" : "ELEVENLABS_API_KEY is not set on the server" };
-  const latest = (await eleven(`/v1/convai/conversations?agent_id=${AGENTS.triagePhoneAgentId}&page_size=1`)).conversations?.[0];
+  // The latest call on the main line, or from "Call my phone" with a desk number.
+  const agents = [AGENTS.triagePhoneAgentId, AGENTS.triageDeskAgentId].filter(Boolean);
+  const latest = (await Promise.all(agents.map((a) => eleven(`/v1/convai/conversations?agent_id=${a}&page_size=1`))))
+    .map((r) => r.conversations?.[0]).filter(Boolean).sort((a, b) => b.start_time_unix_secs - a.start_time_unix_secs)[0];
   if (!latest) return out;
   const ended = latest.start_time_unix_secs + (latest.call_duration_secs || 0);
-  const live = LIVE.has(latest.status);
+  // A call never lasts more than ten minutes; one still marked live after that got stuck at ElevenLabs.
+  const live = LIVE.has(latest.status) && Date.now() / 1000 - latest.start_time_unix_secs < 12 * 60;
   if (!live && Date.now() / 1000 - ended > RECENT_SECS) return out;
   const full = await eleven(`/v1/convai/conversations/${latest.conversation_id}`);
   const transcript = lines(full);
-  out.call = { id: latest.conversation_id, live: LIVE.has(full.status), started: latest.start_time_unix_secs, seconds: full.metadata?.call_duration_secs || 0, messages: transcript, ref: "" };
+  out.call = { id: latest.conversation_id, live, started: latest.start_time_unix_secs, seconds: full.metadata?.call_duration_secs || 0, messages: transcript, ref: "" };
   if (full.status === "done" && transcript.length >= 2) {
     const b = out.board || {};
     out.call.ref = await saveOnce(latest.conversation_id, {
@@ -92,6 +97,21 @@ async function triageLine() {
   return out;
 }
 
+// ---------- placing calls ----------
+
+// Only numbers in these countries are dialled, so a share link cannot run up calls to
+// premium or far-away numbers. North America leaves out the Caribbean codes, which are
+// the usual toll-fraud targets.
+const COUNTRIES = ["973", "966", "971", "965", "974", "968", "44", "1"];
+const CARIBBEAN = new Set("242 246 264 268 284 340 345 441 473 649 658 664 670 671 684 721 758 767 784 787 809 829 849 868 869 876 939".split(" "));
+function phoneNumber(raw) {
+  const n = String(raw || "").replace(/[\s()-]/g, "");
+  if (!/^\+\d{8,15}$/.test(n)) return { reason: "Give the number in international form, for example +97333001122." };
+  const country = COUNTRIES.find((c) => n.startsWith("+" + c));
+  if (!country || (country === "1" && (n.length !== 12 || CARIBBEAN.has(n.slice(2, 5))))) return { reason: "The demo calls numbers in the Gulf, the UK, the US and Canada." };
+  return { n };
+}
+
 // ---------- the campaign agent rings a phone ----------
 
 const APPOINTMENT = {
@@ -100,8 +120,9 @@ const APPOINTMENT = {
 };
 
 async function dial(body, allowed) {
-  const to = String(body.to || "").replace(/[\s()-]/g, "");
-  if (!/^\+\d{8,15}$/.test(to)) return [422, { ok: false, reason: "Give the number in international form, for example +97333001122." }];
+  if (body.line === "triage") return dialTriage(body, allowed);
+  const { n: to, reason } = phoneNumber(body.to);
+  if (!to) return [422, { ok: false, reason }];
   const language = body.language === "en" ? "en" : "ar";
   const agent = AGENTS.campaignAgentIds?.[language];
   if (!KEY() || !agent || !AGENTS.phone?.id) return [503, { ok: false, reason: !KEY() ? "The server has no ElevenLabs key yet." : "No phone number is connected yet." }];
@@ -120,6 +141,33 @@ async function dial(body, allowed) {
   });
   if (!made.conversation_id) return [502, { ok: false, reason: made.message || "The call could not be placed." }];
   return [201, { ok: true, id: made.conversation_id }];
+}
+
+// ---------- the triage agent rings a phone, and its transfer rings the desk number ----------
+
+async function dialTriage(body, allowed) {
+  const you = phoneNumber(body.to);
+  if (!you.n) return [422, { ok: false, reason: you.reason }];
+  let desk = "";
+  if (String(body.desk || "").trim()) {
+    const d = phoneNumber(body.desk);
+    if (!d.n) return [422, { ok: false, reason: `Desk number: ${d.reason}` }];
+    if (d.n === you.n) return [422, { ok: false, reason: "The desk number has to be a different phone from yours: it rings while you are on the call." }];
+    desk = d.n;
+  }
+  // Without a desk number the transfer is shown on the page, as on the main line.
+  const agent = desk ? AGENTS.triageDeskAgentId : AGENTS.triagePhoneAgentId;
+  if (!KEY() || !agent || !AGENTS.phone?.id) return [503, { ok: false, reason: !KEY() ? "The server has no ElevenLabs key yet." : "No phone number is connected yet." }];
+  const may = await allowed();
+  if (!may.ok) return [403, { ok: false, reason: may.reason }];
+  const made = await eleven("/v1/convai/twilio/outbound-call", {
+    agent_id: agent,
+    agent_phone_number_id: AGENTS.phone.id,
+    to_number: you.n,
+    conversation_initiation_client_data: { dynamic_variables: desk ? { desk_number: desk } : {} },
+  });
+  if (!made.conversation_id) return [502, { ok: false, reason: made.message || "The call could not be placed." }];
+  return [201, { ok: true, id: made.conversation_id, desk: Boolean(desk) }];
 }
 
 async function outbound(id, bucket) {

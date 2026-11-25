@@ -52,6 +52,13 @@
     .mute { height: 38px; margin-top: 8px; border: 1px solid var(--line-strong); background: none; font-size: 14px; }
     .mute[aria-pressed="true"] { background: #fde047; border-color: #eab308; }
     .fine { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+    #callme { margin-top: 14px; }
+    .cm { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .cm label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-2); }
+    .cm label span { color: var(--muted); }
+    .cm input { height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); font: inherit; color: var(--text); }
+    .cm .fine { margin: 0; }
+    .cm .call:disabled { opacity: .5; cursor: default; }
     .typed { display: flex; gap: 6px; margin-top: 10px; }
     .typed input { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border: 1px solid var(--line-strong); font: inherit; }
     .typed button { width: 38px; border: 0; background: var(--ai); color: #fff; }
@@ -141,6 +148,14 @@
           <button aria-label="Send">➤</button>
         </form>
         <p id="hint" class="fine">You are the caller. Uses your microphone. Try: "what time do you open on Saturday?", "I need to move my appointment", or "I want to complain".</p>
+        <button id="callme" class="mute" hidden>Or have it call your phone</button>
+        <form id="cm" class="cm" hidden>
+          <label>Your phone<input id="cm-to" inputmode="tel" placeholder="+973 3300 1122" autocomplete="tel" required></label>
+          <label><span class="lbl">Desk phone <span>· optional</span></span><input id="cm-desk" inputmode="tel" placeholder="A colleague's phone"></label>
+          <p class="fine">When the AI agent puts you through, the desk phone rings. Whoever answers hears the summary first, then you are connected. Without one, the transfer is shown here.</p>
+          <button id="cm-go" class="call" disabled>Call my phone</button>
+          <p id="cm-state" class="fine" aria-live="polite"></p>
+        </form>
       </section>
 
       <div>
@@ -198,7 +213,29 @@
       $("#dial").href = `tel:${text.replace(/\s/g, "")}`;
       $("#dial-number").textContent = text;
       if (!TEXT_MODE) $("#hint").textContent = "Call that number from any phone and the call shows up here. Or press the button to call from this browser, using your microphone.";
+      $("#callme").hidden = TEXT_MODE;
     }
+
+    // "Call my phone": the AI agent rings the visitor, and its transfer rings the desk phone they give.
+    $("#callme").addEventListener("click", () => { $("#cm").hidden = !$("#cm").hidden; if (!$("#cm").hidden) $("#cm-to").focus(); });
+    let dialling = false;
+    const cmCheck = () => { $("#cm-go").disabled = dialling || !$("#cm-to").value.trim(); };
+    $("#cm-to").addEventListener("input", cmCheck);
+    $("#cm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!$("#cm-to").value.trim()) return;
+      dialling = true;
+      cmCheck();
+      $("#cm-state").textContent = "Calling your phone…";
+      try {
+        const made = await (await fetch("/api/phone", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ line: "triage", to: $("#cm-to").value, desk: $("#cm-desk").value }) })).json();
+        if (!made.ok) throw new Error(made.reason);
+        $("#cm-state").textContent = made.desk ? "Answer your phone. When you are put through, the desk phone rings." : "Answer your phone. The call shows up here.";
+      } catch (err) {
+        $("#cm-state").textContent = err.message || "The call could not be placed.";
+      }
+      setTimeout(() => { dialling = false; cmCheck(); }, 20000);
+    });
     showNumber(config.phone?.number);
     if (TEXT_MODE) $("#hint").textContent = "Typing mode: you type what the caller says, and the AI agent answers in text.";
 

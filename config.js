@@ -28,5 +28,6 @@ window.SILAH_CONFIG = {
   "phone": {
     "id": "phnum_6701m7reky6hey3tydkyckge9fe7",
     "number": "+13346666922"
-  }
+  },
+  "triageDeskAgentId": "agent_1001m884zpsdf7asz2bmxq520j5f"
 };

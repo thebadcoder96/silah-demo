@@ -386,18 +386,16 @@ async function setupPhone() {
     if (id) await api("PATCH", `/v1/convai/tools/${id}`, { tool_config });
     else config.triagePhoneToolIds[name] = (await api("POST", "/v1/convai/tools", { tool_config })).id;
   }
-  // Every desk rings the one phone in .env, as a warm transfer: whoever picks up hears the summary first.
-  const TRANSFER = transferNumber ? {
-    transfer_to_number: {
-      type: "system",
-      name: "transfer_to_number",
-      description: "",
-      params: { system_tool_type: "transfer_to_number", transfers: [{ transfer_destination: { type: "phone", phone_number: transferNumber }, condition: "After transfer_call has returned, for either desk.", transfer_type: "conference" }] },
-    },
-  } : {};
-  console.log(transferNumber ? "  transfers ring the number in .env" : "  transfers are shown, not dialled (pass --ring-desk to ring TRANSFER_NUMBER)");
+  // A warm transfer: whoever picks up hears the summary first, then the caller is connected.
+  const transferTo = (transfer_destination) => ({
+    type: "system",
+    name: "transfer_to_number",
+    description: "",
+    params: { system_tool_type: "transfer_to_number", transfers: [{ transfer_destination, condition: "After transfer_call has returned, for either desk.", transfer_type: "conference" }] },
+  });
+  console.log(transferNumber ? "  the main line's transfers ring the number in .env" : "  the main line's transfers are shown, not dialled (pass --ring-desk to ring TRANSFER_NUMBER)");
   const bothLanguages = spoken("Your greeting was in Bahraini Arabic. Answer in the language the caller uses: Bahraini Arabic, the everyday spoken dialect and not formal Arabic, or English. Stay in that language unless the caller changes. Say times and numbers in words.", "ar", "en");
-  config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)", {
+  const phoneTriage = (afterTransfer, transfer, extra = {}) => ({
     conversation_config: {
       agent: {
         first_message: triage("First message: Arabic"),
@@ -405,7 +403,8 @@ async function setupPhone() {
         // hands Twilio this language, and Twilio refuses "ar" there (error 13512), which
         // dropped every transfer. Arabic is listed as the agent's second language.
         language: "en",
-        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.phone), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, transfer_to_number: TRANSFER.transfer_to_number || null } },
+        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", afterTransfer), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, transfer_to_number: transfer } },
+        ...extra,
       },
       // The phone line greets in Arabic, so Salim answers it.
       tts: { voice_id: SALIM, model_id: TTS_MODEL, expressive_mode: false },
@@ -414,6 +413,13 @@ async function setupPhone() {
       language_presets: { ar: { overrides: { agent: { first_message: triage("First message: Arabic") } } } },
     },
   });
+  // The number people call.
+  config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)",
+    phoneTriage(transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.phone, transferNumber ? transferTo({ type: "phone", phone_number: transferNumber }) : null));
+  // "Call my phone" on the triage page, with a desk number: the agent rings the visitor, and its
+  // transfer rings the desk number they typed, which reaches it as the desk_number variable.
+  config.triageDeskAgentId = await upsertAgent(config.triageDeskAgentId, "Silah Demo - Triage line (call me, with a desk)",
+    phoneTriage(AFTER_TRANSFER.dialled, transferTo({ type: "phone_dynamic_variable", phone_number: "desk_number" }), { dynamic_variables: { dynamic_variable_placeholders: { desk_number: "+97317000000" } } }));
   await saveConfig();
 
   // the campaign agent that rings a phone, one per language
