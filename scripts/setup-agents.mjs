@@ -24,10 +24,12 @@ if (!key) {
   process.exit(1);
 }
 const args = process.argv.slice(2);
-// The phone that real transfers ring. Kept in .env so it never reaches the repository.
-const transferNumber = (await readFile(`${root}.env`, "utf8").catch(() => "")).match(/^\s*TRANSFER_NUMBER\s*=\s*"?(\+\d{8,15})/m)?.[1] || "";
+// Phone transfers are shown on the page, not dialled, so nobody has to be awake to pick up.
+// With --ring-desk, they ring the phone in TRANSFER_NUMBER in .env (kept out of the repository).
+const transferNumber = args.includes("--ring-desk") ? (await readFile(`${root}.env`, "utf8").catch(() => "")).match(/^\s*TRANSFER_NUMBER\s*=\s*"?(\+\d{8,15})/m)?.[1] || "" : "";
 const AFTER_TRANSFER = {
   shown: "After the tool returns, say one short goodbye sentence and end the call.",
+  phone: "After the tool returns, tell the caller in one short sentence that this is a demonstration line, so the desk will not pick up, but in the real service a colleague would answer now with their summary. Then say goodbye and end the call.",
   dialled: "After the tool returns, call `transfer_to_number` at once, without speaking first: `client_message` is three or four words asking the caller to hold, in the language of the call (you have already told them where they are going), and `agent_message` is the same English summary, for the person who picks up. Do not say goodbye and do not end the call yourself; the transfer connects them.",
 };
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : "";
@@ -345,7 +347,8 @@ async function setupTriage() {
   const tool_ids = await syncTools(TRIAGE_TOOLS, existing);
   for (const language of ["ar", "en"]) {
     const name = language === "ar" ? "Arabic" : "English";
-    const voice_id = TRIAGE_VOICE;
+    // Salim's Arabic sounds better than Rasya's, so he answers in Arabic.
+    const voice_id = language === "ar" ? SALIM : TRIAGE_VOICE;
     const id = config.triageAgentIds[language];
     config.triageAgentIds[language] = await upsertAgent(id, `Silah Demo - Triage line (${language})`, {
       conversation_config: {
@@ -392,7 +395,7 @@ async function setupPhone() {
       params: { system_tool_type: "transfer_to_number", transfers: [{ transfer_destination: { type: "phone", phone_number: transferNumber }, condition: "After transfer_call has returned, for either desk.", transfer_type: "conference" }] },
     },
   } : {};
-  console.log(transferNumber ? "  transfers ring the number in .env" : "  no TRANSFER_NUMBER in .env: the agent says it is transferring, then ends the call");
+  console.log(transferNumber ? "  transfers ring the number in .env" : "  transfers are shown, not dialled (pass --ring-desk to ring TRANSFER_NUMBER)");
   const bothLanguages = spoken("Your greeting was in Bahraini Arabic. Answer in the language the caller uses: Bahraini Arabic, the everyday spoken dialect and not formal Arabic, or English. Stay in that language unless the caller changes. Say times and numbers in words.", "ar", "en");
   config.triagePhoneAgentId = await upsertAgent(config.triagePhoneAgentId, "Silah Demo - Triage line (phone)", {
     conversation_config: {
@@ -402,9 +405,10 @@ async function setupPhone() {
         // hands Twilio this language, and Twilio refuses "ar" there (error 13512), which
         // dropped every transfer. Arabic is listed as the agent's second language.
         language: "en",
-        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.shown), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, ...TRANSFER } },
+        prompt: { prompt: triage("System prompt").replace("[[language_rules]]", bothLanguages).replace("[[after_transfer]]", transferNumber ? AFTER_TRANSFER.dialled : AFTER_TRANSFER.phone), llm: LLM, temperature: 0.2, tool_ids: Object.values(config.triagePhoneToolIds), built_in_tools: { ...END_CALL, transfer_to_number: TRANSFER.transfer_to_number || null } },
       },
-      tts: { voice_id: TRIAGE_VOICE, model_id: TTS_MODEL, expressive_mode: false },
+      // The phone line greets in Arabic, so Salim answers it.
+      tts: { voice_id: SALIM, model_id: TTS_MODEL, expressive_mode: false },
       asr: { keywords: ["Khidmati", "CPR"] },
       conversation: { max_duration_seconds: 600 },
       language_presets: { ar: { overrides: { agent: { first_message: triage("First message: Arabic") } } } },

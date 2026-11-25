@@ -29,17 +29,16 @@
     .dial { flex: none; padding: 12px 18px 14px; background: #0f0f0f; color: #fff; border-bottom: 3px solid var(--ai); text-decoration: none; }
     .dial small { display: block; font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: #a78bfa; }
     .dial b { display: block; font: 700 30px/1.2 var(--mono); letter-spacing: -0.01em; white-space: nowrap; }
-    .line-number { margin: 2px 0 0; font: 700 17px var(--mono); color: var(--ai); }
     .eyebrow { font: 11px var(--mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--ai); }
     .head h1 { margin: 2px 0 0; font-size: 28px; line-height: 1.15; }
     .head p { margin: 6px 0 0; color: var(--text-2); }
-    .grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .grid { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; }
     .panel { background: var(--card); border: 1px solid var(--line); }
 
     /* the phone */
     .handset { position: sticky; top: 20px; padding: 22px; display: flex; flex-direction: column; }
     .label { margin: 0; font-size: 13px; color: var(--muted); }
-    .handset h2 { margin: 2px 0 0; font-size: 22px; font-weight: 600; }
+    .handset h2 { margin: 0; font-size: 19px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #orb { display: block; width: 180px; height: 180px; margin: 12px auto 0; }
     .readout { margin: 6px 0 18px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
     .timer { font: 700 34px/1 var(--mono); font-variant-numeric: tabular-nums; }
@@ -47,8 +46,9 @@
     .seg { display: flex; border: 1px solid var(--line-strong); margin-bottom: 10px; }
     .seg button { flex: 1; height: 36px; border: 0; background: none; font-size: 14px; }
     .seg button[aria-checked="true"] { background: var(--ai); color: #fff; }
-    .call { height: 48px; border: 0; background: var(--ai); color: #fff; font-weight: 500; }
-    .call.on { background: var(--bad); }
+    .call { height: 48px; border: 0; background: var(--ok); color: #fff; font-weight: 500; }
+    .call:hover { background: #166534; }
+    .call.on, .call.on:hover { background: var(--bad); }
     .mute { height: 38px; margin-top: 8px; border: 1px solid var(--line-strong); background: none; font-size: 14px; }
     .mute[aria-pressed="true"] { background: #fde047; border-color: #eab308; }
     .fine { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
@@ -72,8 +72,11 @@
     .desk .who { margin-top: 10px; font: 12px var(--mono); color: var(--muted); }
     .desk.on { border-color: var(--ai); background: var(--ai-soft); box-shadow: 0 0 0 2px var(--ai); }
     .desk.on .who { color: var(--ai); }
-    .desk.ringing .who::after { content: " · ringing…"; animation: blink 1s steps(2) infinite; }
-    .desk.connected .who::after { content: " · connected"; color: var(--ok); }
+    .desk.ringing { animation: ring 1.1s var(--ease) infinite; }
+    .desk.ringing .who { animation: blink 1s steps(2) infinite; }
+    .desk.connected { border-color: var(--ai); background: var(--ai); color: #fff; box-shadow: 0 0 0 2px var(--ai), 0 10px 28px rgba(99, 53, 237, .28); }
+    .desk.connected small, .desk.connected .who { color: #fff; }
+    @keyframes ring { 50% { box-shadow: 0 0 0 6px rgba(99, 53, 237, .25); } }
     @keyframes blink { 50% { opacity: .2; } }
 
     .handover { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--ai); background: var(--ai-soft); animation: rise .35s var(--ease) both; }
@@ -115,15 +118,13 @@
       <div>
       <span class="eyebrow">Inbound · Triage</span>
       <h1>Triage line</h1>
-      <p>An AI agent answers the main line. It deals with the simple questions itself, works out what everyone else needs, and makes a warm transfer to the right desk with a summary, so your agent never starts from zero. Every call is answered on the first ring: ASA is zero, and nobody abandons in a queue.</p>
+      <p>AI answers every call on the first ring. It handles the simple questions itself and puts everyone else through to the right desk, with a summary.</p>
       </div>
       <a id="dial" class="dial" hidden><small>Call it from any phone</small><b id="dial-number"></b></a>
     </div>
     <div class="grid">
       <section id="handset" class="panel handset" aria-label="Call">
-        <p class="label" id="client"></p>
-        <h2>Main line</h2>
-        <p id="line-number" class="line-number" hidden></p>
+        <h2 id="line-name"></h2>
         <canvas id="orb" aria-hidden="true"></canvas>
         <div class="readout">
           <div id="timer" class="timer">0:00</div>
@@ -170,7 +171,14 @@
 
     const $ = (s) => document.querySelector(s);
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const el = (tag, props = {}, kids = []) => { const n = Object.assign(document.createElement(tag), props); n.append(...[].concat(kids).filter(Boolean)); return n; };
+    const el = (tag, props = {}, kids = []) => {
+      const n = Object.assign(document.createElement(tag), props);
+      // English with an Arabic greeting in it reads left to right; mostly Arabic text reads right to left.
+      const t = props.textContent, ar = typeof t === "string" ? (t.match(/[؀-ۿ]/g) || []).length : 0;
+      if (ar) { n.dir = ar >= (t.match(/[A-Za-z]/g) || []).length ? "rtl" : "ltr"; n.style.unicodeBidi = "isolate"; }
+      n.append(...[].concat(kids).filter(Boolean));
+      return n;
+    };
     const params = new URLSearchParams(location.search);
     const TEXT_MODE = params.has("text"); // type instead of talking, for testing without a microphone
     const config = window.SILAH_CONFIG || {};
@@ -179,16 +187,16 @@
     let st = null; // the call in progress, or the last one
     const fresh = () => ({ lines: [], need: "", desk: "", urgency: "", caller: "", summary: "", transferred: "", connected: false, startedAt: 0, saved: false });
 
-    $("#client").textContent = TRIAGE.client;
+    $("#line-name").textContent = $("#line-name").title = `${TRIAGE.client} Main Line`;
 
     // The real phone number, when one is connected: in the heading, where the room can read it.
     const pretty = (n) => String(n).replace(/[^\d+]/g, "").replace(/^\+1(\d{3})(\d{3})(\d{4})$/, "+1 $1 $2 $3");
     function showNumber(number) {
       if (!number) return;
       const text = pretty(number);
-      $("#dial").hidden = $("#line-number").hidden = false;
+      $("#dial").hidden = false;
       $("#dial").href = `tel:${text.replace(/\s/g, "")}`;
-      $("#dial-number").textContent = $("#line-number").textContent = text;
+      $("#dial-number").textContent = text;
       if (!TEXT_MODE) $("#hint").textContent = "Call that number from any phone and the call shows up here. Or press the button to call from this browser, using your microphone.";
     }
     showNumber(config.phone?.number);
@@ -212,7 +220,7 @@
         el("div", { className: ["desk", s.desk === id ? "on" : "", s.transferred === id ? (s.connected ? "connected" : "ringing") : ""].join(" ").trim() }, [
           el("b", { textContent: d.name }),
           el("small", { textContent: d.note }),
-          el("div", { className: "who", textContent: d.person ? `Rings ${d.person}'s phone` : "No transfer needed" }),
+          el("div", { className: "who", textContent: !d.transfer ? "No transfer needed" : s.transferred === id ? (s.connected ? "Put through · summary sent" : "Transferring…") : "Warm transfer with a summary" }),
         ])));
     }
     drawBoard();
@@ -252,7 +260,7 @@
       drawBoard();
       say("note", `Transferring to the ${desk.name}`);
       drawHandover();
-      // In the browser the transfer is shown, not dialled. On a phone number the same step rings the desk.
+      // The transfer is shown, not dialled, here and on the phone number.
       sleep(2600).then(() => { if (st === call) { st.connected = true; drawBoard(); } });
       return { transferred: true, desk: desk.name, note: "The caller is being put through. Say one short goodbye sentence, then end the call." };
     }
@@ -260,7 +268,7 @@
       if (!st?.transferred) return $("#handover").replaceChildren();
       const desk = TRIAGE.desks[st.transferred];
       $("#handover").replaceChildren(el("div", { className: "handover" }, [
-        el("small", { textContent: `Warm transfer · what ${desk.person} hears and sees when the phone rings` }),
+        el("small", { textContent: `Warm transfer · what the ${desk.name} sees as the call arrives` }),
         el("p", { textContent: st.summary }),
         ref ? el("p", { className: "ref" }, [`Saved as ${ref}. `, el("a", { href: "../quality/", target: "silah-quality", textContent: "Open the quality desk →" })]) : null,
       ]));

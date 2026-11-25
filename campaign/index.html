@@ -169,6 +169,9 @@
     const $ = (s) => document.querySelector(s);
     const el = (tag, props = {}, kids = []) => {
       const n = Object.assign(document.createElement(tag), props);
+      // English with an Arabic greeting in it reads left to right; mostly Arabic text reads right to left.
+      const t = props.textContent, ar = typeof t === "string" ? (t.match(/[؀-ۿ]/g) || []).length : 0;
+      if (ar) { n.dir = ar >= (t.match(/[A-Za-z]/g) || []).length ? "rtl" : "ltr"; n.style.unicodeBidi = "isolate"; }
       for (const k of [].concat(kids)) if (k != null) n.append(k);
       return n;
     };

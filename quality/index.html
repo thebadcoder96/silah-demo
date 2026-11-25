@@ -123,7 +123,7 @@
 <body>
   <header class="demo-bar">
     <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
-    <span><b>Quality desk.</b> A demonstration by MM Intelligence. Every client, customer and call here is made up.</span>
+    <span><b>Quality desk.</b> A demonstration by MM Intelligence. The clients and customers here are made up.</span>
     <a href="../">← All demos</a>
     <a href="../campaign/">Campaign desk</a>
     <a href="../triage/">Triage line</a>
@@ -173,6 +173,9 @@
     const orb = createOrb($("#orb"));
     const el = (tag, props = {}, kids = []) => {
       const n = Object.assign(document.createElement(tag), props);
+      // English with an Arabic greeting in it reads left to right; mostly Arabic text reads right to left.
+      const t = props.textContent, ar = typeof t === "string" ? (t.match(/[؀-ۿ]/g) || []).length : 0;
+      if (ar) { n.dir = ar >= (t.match(/[A-Za-z]/g) || []).length ? "rtl" : "ltr"; n.style.unicodeBidi = "isolate"; }
       for (const k of [].concat(kids)) if (k != null) n.append(k);
       return n;
     };
@@ -227,7 +230,7 @@
         if (!(await scorer.start({ agentId: scorerId, textOnly: true }))) throw new Error("the scorer did not start");
         scorer.send([
           `Handled by: ${c.handledBy === "AI" ? "an AI agent" : "a human agent"}`,
-          `Call: ${c.source === "Campaign" ? "outbound" : "inbound"}, ${c.language === "ar" ? "Arabic" : "English"}, outcome ${c.outcome}`,
+          `Call: ${c.source === "Campaign" ? "outbound" : c.source === "Triage" ? "inbound triage (the main line, which answers simple questions and routes everyone else to a desk)" : "inbound"}, ${c.language === "ar" ? "Arabic" : "English"}, outcome ${c.outcome}`,
           "TRANSCRIPT",
           ...c.transcript.map((x) => `${x.who === "agent" ? "AGENT" : "CUSTOMER"}: ${x.text}`),
         ].join("\n"));
