@@ -37,6 +37,8 @@
     .primary:disabled { opacity: .5; cursor: default; }
     .ghost { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--card); white-space: nowrap; }
     .ghost:disabled { color: var(--muted); cursor: default; }
+    #callme:not(:disabled) { border: 0; background: var(--ok); color: #fff; font-weight: 500; }
+    #callme:not(:disabled):hover { background: #166534; }
 
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
     .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
@@ -110,7 +112,7 @@
 <body>
   <header class="demo-bar">
     <a class="brand" href="../" aria-label="All demos"><img src="../assets/mmi-logo.png" alt="MM Intelligence" height="24"></a>
-    <span><b>Campaign desk.</b> A demonstration by MM Intelligence. The run is simulated: nobody on the list is dialled, and every person and number is made up. "Call my phone" places one real call.</span>
+    <span><b>Campaign desk.</b> A demonstration by MM Intelligence. The list is made up and the run is simulated.</span>
     <a href="../">← All demos</a>
     <a href="../quality/" target="silah-quality">Quality desk</a>
   </header>
@@ -120,7 +122,7 @@
         <span class="eyebrow">Outbound · AI agent</span>
         <h1 id="c-name"></h1>
         <p id="c-goal"></p>
-        <p class="pitch">An AI agent works the call list for you. It follows your script and your campaign rules, says it is an AI, makes a warm transfer to a person the moment someone asks, honours the DNC list, and logs a disposition for every attempt, so connect rate, RPC and conversion are on the board while the list is still being dialled.</p>
+        <p class="pitch">AI calls through your list, confirms each appointment, and hands the call to a person when someone asks. Press "Call my phone" to take one of the calls yourself.</p>
         <div id="c-rules" class="chips"></div>
       </div>
       <div class="actions">

@@ -262,7 +262,8 @@ function note(text) {
 function drawLine(line) {
   const old = document.getElementById(`line-${line.id}`);
   const node = el("div", { id: `line-${line.id}`, className: `turn ${line.who}` }, [
-    el("small", { textContent: line.who === "agent" ? "You" : scenario.customer.name }),
+    // The caller stays "Caller" until the copilot has found who they are.
+    el("small", { textContent: line.who === "agent" ? "You" : st.identity === "none" ? "Caller" : scenario.customer.name }),
     el("p", { textContent: line.text }),
     st.english && line.en ? el("p", { className: "en", textContent: line.en }) : null,
   ]);
@@ -400,7 +401,10 @@ function search(query) {
       if (st.identity === "none") $("#sys-body").replaceChildren(el("p", { className: "hint", textContent: `No customer matched “${query}”.` }));
       return;
     }
-    if (st.identity === "none") st.identity = "found";
+    if (st.identity === "none") {
+      st.identity = "found";
+      document.querySelectorAll(".turn:not(.agent) small").forEach((n) => { n.textContent = scenario.customer.name; });
+    }
     drawSystem();
   });
   if (!hit) return { found: false, note: "No customer matched. The agent should ask for the name and CPR digits again." };

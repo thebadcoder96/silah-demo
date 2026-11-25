@@ -134,7 +134,7 @@
       <div style="flex: 1 1 420px">
         <span class="eyebrow">Behind every call · Quality assurance</span>
         <h1>100% QA coverage</h1>
-        <p class="pitch" style="margin-bottom: 0">A QA team listens to two or three calls in a hundred. Here every call is scored against your QA scorecard, the same standard for an AI agent and a person, with the line that earned each mark. AHT, containment and transfer rate are measured from the calls; FCR, CSAT and ASAT are predicted from the transcript until your own survey data is connected.</p>
+        <p class="pitch" style="margin-bottom: 0">A QA team usually hears two or three calls in a hundred. Here every call, AI or human, is scored against one scorecard, with the line that earned each mark.</p>
       </div>
       <div id="live" class="live"><canvas id="orb" aria-hidden="true"></canvas><span>Live · updates every 2 seconds</span></div>
       <button id="clear" class="ghost">Clear demo queue</button>
@@ -367,6 +367,11 @@
     }
 
     let armed = null;
+    // Someone on a share link sees "Clear" only for staff; their own calls are what they came to see.
+    addEventListener("load", () => {
+      const bucket = String(window.mmiDemo?.visit?.() || "").split(".")[0];
+      if (bucket && bucket !== "staff") $("#clear").hidden = true;
+    });
     $("#clear").addEventListener("click", async () => {
       const b = $("#clear");
       if (!armed) {

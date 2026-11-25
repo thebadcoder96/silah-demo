@@ -135,7 +135,7 @@ export const SCENARIOS = {
     client: "Khidmati Service Centre",
     sector: "Government services",
     title: "Move an appointment",
-    blurb: "A customer needs a new time for an CPR card renewal.",
+    blurb: "A customer needs a new time for a CPR card renewal.",
     accent: "#9a3412",
     customer: { name: "Maryam Al Sayed", nameAr: "مريم السيد", cprLast4: "2906", account: "KS-774310", detail: "CPR card renewal · file opened 9 Nov" },
     tabs: [
@@ -174,13 +174,13 @@ export const SCENARIOS = {
         ],
       },
       {
-        id: "renewal-documents", title: "What to bring for an CPR card renewal",
+        id: "renewal-documents", title: "What to bring for a CPR card renewal",
         body: ["The current CPR card.", "Proof of address dated within the last three months.", "The renewal fee is paid at the centre by card."],
       },
     ],
     caller: {
       gender: "female",
-      brief: "You have an CPR card renewal appointment on Sunday at ten in the morning at the Isa Town centre, but your daughter has a hospital appointment at the same time. You want to move it to another day next week, in the morning if possible, and you prefer Isa Town because it is close to home. Before the call ends, ask what you need to bring with you.",
+      brief: "You have a CPR card renewal appointment on Sunday at ten in the morning at the Isa Town centre, but your daughter has a hospital appointment at the same time. You want to move it to another day next week, in the morning if possible, and you prefer Isa Town because it is close to home. Before the call ends, ask what you need to bring with you.",
       mood: "Calm, unhurried and courteous.",
       happyWhen: "The agent gives you a new day and time and tells you what to bring.",
       callback: "three three double-zero, seven four one six (a made-up number you give if asked for a callback number)",

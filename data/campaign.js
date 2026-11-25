@@ -17,7 +17,7 @@ const t = (who, text, en) => ({ who, text, en });
 export const LEADS = [
   {
     name: "Hassan Al Aali", gender: "male", phone: "+973 3••• ••41", language: "ar", appointment: "Mon 23 Nov, 09:30", outcome: "answered", result: "Confirmed", secs: 41,
-    summary: "Reminder for an CPR card renewal on Monday at half past nine. He confirmed he will attend.",
+    summary: "Reminder for a CPR card renewal on Monday at half past nine. He confirmed he will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياك المساعد الآلي من مركز خدمتي. أكلم الأخ حسن العالي؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Hassan Al Aali?"),
       t(C, "وعليكم السلام، إي أنا حسن.", "And upon you peace. Yes, this is Hassan."),
@@ -47,7 +47,7 @@ export const LEADS = [
   },
   {
     name: "Ebrahim Salman", gender: "male", phone: "+973 3••• ••88", language: "en", appointment: "Tue 24 Nov, 08:30", outcome: "answered", result: "Confirmed", secs: 44,
-    summary: "Reminder for an CPR card renewal on Tuesday at half past eight. He confirmed and asked what to bring; the assistant listed the documents.",
+    summary: "Reminder for a CPR card renewal on Tuesday at half past eight. He confirmed and asked what to bring; the assistant listed the documents.",
     transcript: [
       t(AI, "السلام عليكم, this is the AI assistant from Khidmati Service Centre. Am I speaking with Ebrahim Salman?"),
       t(C, "Yes, speaking."),
@@ -75,7 +75,7 @@ export const LEADS = [
   },
   {
     name: "Noora Janahi", gender: "female", phone: "+973 3••• ••65", language: "ar", appointment: "Mon 23 Nov, 12:30", outcome: "answered", result: "Confirmed", secs: 38,
-    summary: "Reminder for an CPR card renewal on Monday at half past twelve. She confirmed she will attend.",
+    summary: "Reminder for a CPR card renewal on Monday at half past twelve. She confirmed she will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت نورة جناحي؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Noora Janahi?"),
       t(C, "إي، تفضل.", "Yes, go ahead."),
@@ -96,7 +96,7 @@ export const LEADS = [
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت هدى كمال؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Huda Kamal?"),
       t(C, "إي أنا هدى، بس أنا أسوق الحين.", "Yes, this is Huda, but I am driving right now."),
-      t(AI, "ما بطول عليج. عندج موعد تجديد البطاقة يوم الثلاثاء الساعة عشر. بتحضرين؟", "I will not keep you. You have an CPR card renewal appointment on Tuesday at ten. Will you attend?"),
+      t(AI, "ما بطول عليج. عندج موعد تجديد البطاقة يوم الثلاثاء الساعة عشر. بتحضرين؟", "I will not keep you. You have a CPR card renewal appointment on Tuesday at ten. Will you attend?"),
       t(C, "لا، بكون مسافرة. اتصلوا فيني بعد الساعة أربع عشان أختار موعد ثاني.", "No, I will be travelling. Call me after four so I can choose another time."),
       t(AI, "زين، سجلت طلبج: موظف بيتصل فيج اليوم بعد الساعة أربع. سوقي بحذر، مع السلامة.", "Good, I have noted your request: a member of staff will call you today after four. Drive safely, goodbye."),
     ],
@@ -116,7 +116,7 @@ export const LEADS = [
   },
   {
     name: "Fatima Bucheeri", gender: "female", phone: "+973 3••• ••58", language: "ar", appointment: "Tue 24 Nov, 11:30", outcome: "answered", result: "Confirmed", secs: 36,
-    summary: "Reminder for an CPR card renewal on Tuesday at half past eleven. She confirmed she will attend.",
+    summary: "Reminder for a CPR card renewal on Tuesday at half past eleven. She confirmed she will attend.",
     transcript: [
       t(AI, "السلام عليكم، وياج المساعد الآلي من مركز خدمتي. أكلم الأخت فاطمة بوجيري؟", "Peace be upon you, this is the AI assistant from Khidmati Service Centre. Am I speaking with Fatima Bucheeri?"),
       t(C, "وعليكم السلام، إي أنا.", "And upon you peace. Yes, that is me."),
